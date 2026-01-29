@@ -1,0 +1,18 @@
+# --- [Frontend] ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env
+frontend/.env.local
+
+# --- [Backend] ---
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+# lotto_model.pth는 5MB라 괜찮으니 이번엔 제외 안 함
+
+# --- [System] ---
+.DS_Store
+k3s/

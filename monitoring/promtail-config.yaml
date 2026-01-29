@@ -1,0 +1,25 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: pm2_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker  # 대시보드 호환용
+          __path__: /var/log/pm2/*.log  # 폴더 내 모든 로그 파일 감시
+
+    # ▼▼▼ [마법의 주문] 파일 이름에서 앱 이름 추출하기 ▼▼▼
+    relabel_configs:
+      - source_labels: ['__path__']
+        # 예: /var/log/pm2/murro_backend-out.log -> 'murro_backend' 추출
+        regex: '.*/(.*)-(out|error)\.log'
+        target_label: 'container_name'

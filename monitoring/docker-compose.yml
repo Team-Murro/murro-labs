@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always  
+    container_name: murro_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # 호스트 접근 허용
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    container_name: murro_grafana
+    ports:
+      - "3100:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_DOMAIN=murro.co.kr
+      - GF_SERVER_ROOT_URL=https://murro.co.kr/mon/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana    
+
+  # ▼▼▼ [추가됨] 이 녀석이 있어야 CPU/메모리 정보를 캡니다! ▼▼▼
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: always
+    container_name: node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - 9100:9100
+
+# ▼▼▼ [추가 1] 로그 창고 (Loki) ▼▼▼
+  loki:
+    image: grafana/loki:latest
+    restart: always
+    container_name: loki
+    ports:
+      - "3200:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+
+  # ▼▼▼ [추가 2] 로그 배달부 (Promtail) ▼▼▼
+  promtail:
+    image: grafana/promtail:latest
+    restart: always
+    container_name: promtail
+    volumes:
+      - ./promtail-config.yaml:/etc/promtail/config.yaml
+      - /home/murro/.pm2/logs:/var/log/pm2:ro
+      - /etc/localtime:/etc/localtime:ro        
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on:
+      - loki
+
+volumes:
+  grafana_data:        
