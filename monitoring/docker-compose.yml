@@ -20,8 +20,8 @@ services:
       - "3100:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SERVER_DOMAIN=murro.co.kr
-      - GF_SERVER_ROOT_URL=https://murro.co.kr/mon/
+      - GF_SERVER_DOMAIN=mon.murro.co.kr
+      - GF_SERVER_ROOT_URL=https://mon.murro.co.kr
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     depends_on:
@@ -64,7 +64,7 @@ services:
     container_name: promtail
     volumes:
       - ./promtail-config.yaml:/etc/promtail/config.yaml
-      - /home/murro/.pm2/logs:/var/log/pm2:ro
+      - /var/log/pods:/var/log/pods:ro
       - /etc/localtime:/etc/localtime:ro        
     command: -config.file=/etc/promtail/config.yaml
     depends_on:

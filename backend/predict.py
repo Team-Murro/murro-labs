@@ -11,6 +11,8 @@ from train_model import LottoLSTM, WINDOW_SIZE
 # 10.0 이상 : AI 예측 무시하고 완전 랜덤에 가까워짐
 TEMPERATURE = 3 
 
+MODEL_PATH = "/app/models/lotto_model.pth"
+
 def get_ai_prediction():
     # 1. 최신 데이터 가져오기
     db = SessionLocal()
@@ -37,7 +39,7 @@ def get_ai_prediction():
     model = LottoLSTM().to(device)
     
     try:
-        model.load_state_dict(torch.load("lotto_model.pth", map_location=device))
+        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
     except:
         return {"error": "모델 파일이 없습니다."}
         

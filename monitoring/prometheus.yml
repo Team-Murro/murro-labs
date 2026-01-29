@@ -8,7 +8,7 @@ scrape_configs:
     static_configs:
       # [수정] 127.0.0.1 대신 host.docker.internal 사용
       # (그래야 도커가 '내 컴퓨터'의 8080포트를 찾아갑니다)
-      - targets: ['host.docker.internal:8080']
+      - targets: ['10.42.0.26:8000']
 
   # 2. [추가됨] 서버 CPU/메모리/디스크 모니터링 (대시보드용)
   - job_name: 'node'

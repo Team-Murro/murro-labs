@@ -9,17 +9,31 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: pm2_logs
+  - job_name: k3s_logs
     static_configs:
       - targets:
           - localhost
         labels:
-          job: docker  # 대시보드 호환용
-          __path__: /var/log/pm2/*.log  # 폴더 내 모든 로그 파일 감시
+          job: k3s
+          # ▼▼▼ K3s가 로그를 저장하는 진짜 경로 ▼▼▼
+          __path__: /var/log/pods/*/*/*.log
 
-    # ▼▼▼ [마법의 주문] 파일 이름에서 앱 이름 추출하기 ▼▼▼
-    relabel_configs:
-      - source_labels: ['__path__']
-        # 예: /var/log/pm2/murro_backend-out.log -> 'murro_backend' 추출
-        regex: '.*/(.*)-(out|error)\.log'
-        target_label: 'container_name'
+    pipeline_stages:
+      # 1. [중요] K3s/Docker 로그 형식을 깔끔하게 파싱 (타임스탬프, 스트림 제거)
+      - cri: {}
+
+      # 2. 파일 경로에서 정보 추출 (Namespace, Pod 이름, Container 이름)
+      # 경로 예시: /var/log/pods/default_murro-backend-xx_uid/backend/0.log
+      - match:
+          selector: '{job="k3s"}'
+          stages:
+          - regex:
+              # 정규식 마법: 경로에서 쏙쏙 뽑아내기
+              expression: "^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod_name>.+?)_(?P<pod_uid>[a-f0-9-]+)/(?P<container_name>[^/]+)/.*$"
+              source: filename
+          
+          # 추출한 정보를 라벨(Label)로 등록 (그라파나에서 필터링할 때 씀)
+          - labels:
+              namespace:
+              pod_name:
+              container_name:
