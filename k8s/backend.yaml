@@ -16,7 +16,7 @@ spec:
         - name: ghcr-secret  # <--- 추가
       containers:
         - name: backend
-          image: ghcr.io/Team-Murro/murro-labs/backend:latest
+          image: ghcr.io/team-murro/murro-labs/backend:latest
           imagePullPolicy: Always  # [중요] 외부에서 찾지 말고 아까 넣은 로컬 이미지 써라!
           ports:
             - containerPort: 8000
