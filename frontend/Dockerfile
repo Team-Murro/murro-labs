@@ -6,7 +6,7 @@ RUN npm ci
 COPY . .
 # Next.js 환경변수 설정 (빌드 시점)
 ENV NODE_ENV=production
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # --- Run Stage (실행용 - 초경량) ---
 FROM node:20-alpine AS runner

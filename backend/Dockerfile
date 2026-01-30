@@ -11,7 +11,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # 4. 의존성 파일 복사 및 설치
 # (requirements.txt가 없으면 제가 분석한 라이브러리로 자동 생성 명령어를 넣습니다)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
 
 # 5. 소스코드 전체 복사
 COPY . .
