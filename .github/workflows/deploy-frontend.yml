@@ -4,23 +4,27 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'frontend/**' # frontend 폴더 수정될 때만 실행
+      - 'frontend/**'
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: team-murro/murro-labs/frontend # [확인] 선생님 이미지 이름 규칙 적용
-  DEPLOYMENT_FILE_PATH: k8s/frontend.yaml # [중요] k8s 폴더 안에 있는지 확인!
+  IMAGE_NAME: team-murro/murro-labs/frontend
+  DEPLOYMENT_FILE_PATH: k8s/frontend.yaml
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Git에 쓰기 권한
-      packages: write # GHCR에 쓰기 권한
+      contents: write
+      packages: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # [추가됨] 이게 있어야 캐시 기능이 작동합니다!
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -29,12 +33,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 1. 짧은 커밋 해시(예: a1b2c3d) 따오기
       - name: Get Short SHA
         id: slug
         run: echo "sha8=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
 
-      # 2. 빌드 & 푸시 (latest 태그와 해시 태그 2개 동시에 생성)
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -46,16 +48,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 3. k8s/frontend.yaml 파일의 이미지 태그 부분만 쏙 골라서 수정
       - name: Update Kubernetes Manifest
         run: |
-          # sed 명령어로 'image: ...:어쩌구' 를 'image: ...:해시값' 으로 변경
           sed -i "s|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.slug.outputs.sha8 }}|g" ${{ env.DEPLOYMENT_FILE_PATH }}
-
-          # 잘 바뀌었는지 눈으로 확인
           cat ${{ env.DEPLOYMENT_FILE_PATH }} | grep image:
 
-      # 4. 변경된 YAML 파일을 Git에 저장 (ArgoCD 트리거)
       - name: Commit and Push
         run: |
           git config --global user.name "GitHub Actions"
