@@ -8,20 +8,6 @@ export const metadata: Metadata = {
 // [핵심] 여기에 공지사항을 추가하면 자동으로 화면에 반영됩니다.
 // 관리자 페이지 대신 이 배열만 관리하시면 됩니다.
 const NOTICES = [
-  {  
-    id: 99,
-    title: "🚀 배포 시스템 자동화 테스트 중입니다",
-    date: "2026.01.30",
-    content: `현재 CI/CD 파이프라인 구축 완료 후 자동 배포 기능을 테스트하고 있습니다.
-    
-    이 공지사항이 보인다면:
-    1. GitHub Actions가 도커 이미지를 잘 구웠고
-    2. k8s YAML 파일의 버전 태그를 자동으로 수정했고
-    3. ArgoCD가 변경 사항을 감지해서 배포까지 성공했다는 뜻입니다!
-    
-    (테스트 후 삭제될 예정입니다)`,
-    important: false,
-  },	
   {
     id: 1,
     title: "🚧 MURRO LABS 서비스 리뉴얼 및 시범 운영 안내",
