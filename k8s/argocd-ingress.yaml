@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd  # ★ ArgoCD가 설치된 네임스페이스 (보통 argocd)
+  annotations:
+    # "HTTPS가 아니라 HTTP로 통신해라" (우리가 위에서 insecure 넣었으니까)
+    ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/ingress.class: "traefik"
+spec:
+  rules:
+  - host: argo.murro.co.kr  # ★ 선생님 도메인
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80 # ArgoCD 서비스의 기본 HTTP 포트

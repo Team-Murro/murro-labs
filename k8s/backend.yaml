@@ -41,8 +41,10 @@ kind: Service
 metadata:
   name: murro-backend-svc
 spec:
+  type: NodePort
   selector:
     app: murro-backend
   ports:
     - port: 80       # 서비스 포트
       targetPort: 8000 # 컨테이너 포트
+      nodePort: 31000
