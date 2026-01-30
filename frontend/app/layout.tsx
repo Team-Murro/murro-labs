@@ -76,7 +76,7 @@ export default function RootLayout({
               
               <div className="flex flex-col md:items-end gap-2 text-xs text-slate-400">
                 {/* [3] 약관 페이지 링크 연결 */}
-		<Link href="/notice" className="hover:text-blue-400 transition-colors font-medium text-slate-300">
+        		<Link href="/notice" className="hover:text-blue-400 transition-colors font-medium text-slate-300">
                   공지사항
                 </Link>
                 <Link href="/terms" className="hover:text-blue-400 transition-colors">서비스 이용약관</Link>
