@@ -23,6 +23,12 @@ spec:
           env:
             - name: TZ
               value: "Asia/Seoul"
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://murro.co.kr"  # 기존에 있던 거라면 유지
+            - name: ADMIN_USER
+              value: "admin"                # 원하는 ID
+            - name: ADMIN_PASSWORD
+              value: "!djemals12#" # 원하는 비밀번호 (복잡하게 설정하세요!)
 ---
 apiVersion: v1
 kind: Service
