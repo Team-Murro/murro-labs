@@ -1,4 +1,3 @@
-# backend/generator.py
 import requests
 import json
 import os
@@ -31,7 +30,7 @@ def get_image_url(keyword):
 
 def generate_game_data():
     """Ollama에게 밸런스 게임 생성을 요청"""
-prompt = """
+    prompt = """
     Create a 'Balance Game' (Would You Rather) scenario for Koreans.
     
     [Rules]
@@ -51,8 +50,10 @@ prompt = """
     }
     """
     
+    # [수정 포인트] 이 부분이 들여쓰기 오류가 났던 곳입니다. 
+    # prompt 변수와 줄을 맞춰주세요.
     payload = {
-        "model": "llama3.1", # ✅ [수정] llama3 -> llama3.1 로 변경!
+        "model": "llama3.1", 
         "prompt": prompt,
         "stream": False,
         "format": "json"
@@ -63,7 +64,7 @@ prompt = """
         res = requests.post(OLLAMA_URL, json=payload, timeout=30)
         result = res.json()
         
-        # ✅ [추가] Ollama가 에러를 뱉었는지 확인하는 안전장치
+        # Ollama가 에러를 뱉었는지 확인하는 안전장치
         if "error" in result:
             print(f"❌ Ollama API 에러 반환: {result['error']}")
             return None
@@ -83,7 +84,6 @@ prompt = """
         }
     except Exception as e:
         print(f"❌ 생성 로직 에러: {e}")
-        # 혹시 result가 존재한다면 내용도 같이 출력해서 디버깅
         try:
             if 'result' in locals(): print(f"🔍 응답 내용: {result}")
         except: pass
