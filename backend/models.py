@@ -59,3 +59,21 @@ class Notice(Base):
     content = Column(String)            # 내용 (긴 텍스트)
     is_active = Column(Integer, default=1) # 1: 보임, 0: 숨김 (Boolean 대신 Integer 사용 등 호환성 고려)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class BalanceGame(Base):
+    __tablename__ = "balance_games"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(String)       # 질문 (예: 평생 라면 vs 평생 탄산)
+    
+    option_a = Column(String)       # A 선택지
+    img_a = Column(String, nullable=True) # A 이미지 URL
+    
+    option_b = Column(String)       # B 선택지
+    img_b = Column(String, nullable=True) # B 이미지 URL
+    
+    count_a = Column(Integer, default=0) # A 투표수
+    count_b = Column(Integer, default=0) # B 투표수
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    

@@ -1,11 +1,11 @@
 # backend/main.py
 import asyncio
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, case
-from database import get_db, Base, engine
-from models import LottoDraw, Prediction, WinningStore, Notice
+from database import get_db, Base, engine, SessionLocal
+from models import LottoDraw, Prediction, WinningStore, Notice, BalanceGame
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from schemas import PredictionCreate, PredictionResponse, NoticeCreate, NoticeResponse
@@ -18,10 +18,11 @@ from fortune import get_fortune_reading
 from store_crawler import crawl_past_winning_stores
 from geocoder import update_store_coordinates
 from menu import get_menu_recommendation
-from pydantic import BaseModel
 from datetime import datetime
 from contextlib import asynccontextmanager
 from prometheus_fastapi_instrumentator import Instrumentator
+from generator import generate_game_data
+import random
 
 Base.metadata.create_all(bind=engine)
 
@@ -254,4 +255,71 @@ def delete_notice(notice_id: int, db: Session = Depends(get_db)):
         db.commit()
         return {"message": "삭제되었습니다."}
     return {"error": "존재하지 않는 글입니다."}
+
+# --- [신규] 밸런스 게임 API (Prefetching 적용) ---
+
+def bg_generate_task():
+    """백그라운드에서 실행될 AI 생성 작업"""
+    # 백그라운드 작업은 별도의 DB 세션을 열어야 안전합니다.
+    db = SessionLocal() 
+    try:
+        data = generate_game_data()
+        if data:
+            new_game = BalanceGame(**data)
+            db.add(new_game)
+            db.commit()
+            print(f"✅ [Background] 새 게임 생성 완료: {data['question']}")
+    except Exception as e:
+        print(f"❌ [Background] 생성 실패: {e}")
+    finally:
+        db.close()
+
+@app.get("/api/balance/next")
+def get_next_balance_game(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # 1. DB에 있는 게임 수 확인
+    count = db.query(BalanceGame).count()
     
+    # 2. 게임이 하나도 없으면? (최초 실행 시) -> 기다렸다가 만들어서 줌
+    if count == 0:
+        data = generate_game_data()
+        if not data: return {"error": "AI가 응답하지 않습니다."}
+        
+        first_game = BalanceGame(**data)
+        db.add(first_game)
+        db.commit()
+        
+        # 나가는 길에 하나 더 만들어두라고 시킴 (다음 사람을 위해)
+        background_tasks.add_task(bg_generate_task)
+        
+        return first_game
+
+    # 3. 게임이 있으면 -> 랜덤으로 하나 뽑아서 줌 (즉시 응답!)
+    rand_offset = random.randint(0, count - 1)
+    game = db.query(BalanceGame).offset(rand_offset).first()
+    
+    # 4. [핵심] DB에 게임이 100개 미만이면, 나가는 길에 하나 더 만들라고 예약함
+    if count < 100:
+        background_tasks.add_task(bg_generate_task)
+        
+    return game
+
+@app.post("/api/balance/{game_id}/vote")
+def vote_balance_game(game_id: int, choice: str, db: Session = Depends(get_db)):
+    game = db.query(BalanceGame).filter(BalanceGame.id == game_id).first()
+    if not game: return {"error": "Game not found"}
+    
+    if choice == 'A': game.count_a += 1
+    elif choice == 'B': game.count_b += 1
+    
+    db.commit()
+    
+    # 결과 계산
+    total = game.count_a + game.count_b
+    per_a = int((game.count_a / total) * 100)
+    
+    return {
+        "percent_a": per_a,
+        "percent_b": 100 - per_a,
+        "count_a": game.count_a,
+        "count_b": game.count_b
+    }
