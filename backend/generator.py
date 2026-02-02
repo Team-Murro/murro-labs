@@ -46,16 +46,22 @@ def generate_game_data():
     """
     
     payload = {
-        "model": "llama3", # 설치된 모델명 확인 (llama3, mistral 등)
+        "model": "llama3.1", # ✅ [수정] llama3 -> llama3.1 로 변경!
         "prompt": prompt,
         "stream": False,
         "format": "json"
     }
     
     try:
-        print("🤖 AI 게임 생성 중...")
+        print(f"🤖 AI 게임 생성 요청 (Model: {payload['model']})...")
         res = requests.post(OLLAMA_URL, json=payload, timeout=30)
         result = res.json()
+        
+        # ✅ [추가] Ollama가 에러를 뱉었는지 확인하는 안전장치
+        if "error" in result:
+            print(f"❌ Ollama API 에러 반환: {result['error']}")
+            return None
+            
         content = json.loads(result['response'])
         
         # 이미지 주소 확보
@@ -70,5 +76,9 @@ def generate_game_data():
             "img_b": img_b
         }
     except Exception as e:
-        print(f"❌ 생성 에러: {e}")
+        print(f"❌ 생성 로직 에러: {e}")
+        # 혹시 result가 존재한다면 내용도 같이 출력해서 디버깅
+        try:
+            if 'result' in locals(): print(f"🔍 응답 내용: {result}")
+        except: pass
         return None
