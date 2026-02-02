@@ -3,7 +3,7 @@ import requests
 import json
 import os
 import random
-import re  # 정규표현식 모듈 추가 (한글 검사용)
+import re
 
 # 환경변수 설정
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://10.42.0.1:11434") 
@@ -16,9 +16,8 @@ def get_image_url(keyword):
         seed = random.randint(1, 10000)
         return f"https://picsum.photos/seed/{seed}/600/800"
 
-    # 키워드 정제 (너무 길면 자름)
     safe_keyword = keyword.split(',')[0].strip()
-    # 영어가 아니면 강제로 'random' 처리 (Unsplash는 영어만 인식함)
+    # 한글이 섞여있으면 검색어 오염으로 간주하고 랜덤 이미지
     if re.search('[가-힣]', safe_keyword): 
         safe_keyword = "random"
 
@@ -35,50 +34,59 @@ def get_image_url(keyword):
     return f"https://picsum.photos/seed/{seed}/600/800"
 
 def is_valid_korean(text):
-    """한글이 포함되어 있고, 이상한 외계어가 아닌지 검사"""
-    # 1. 한글이 적어도 5글자 이상 포함되어야 함
-    korean_count = len(re.findall('[가-힣]', text))
-    if korean_count < 5:
-        return False
+    """최소한의 한국어 문법 구조 검사"""
+    # 1. 길이가 너무 짧으면 실패
+    if len(text) < 10: return False
     
-    # 2. 일본어(히라가나/가타카나)나 아랍어가 섞여 있으면 실패 처리
-    # (일본어 유니코드 범위: 3040-309F, 30A0-30FF)
-    if re.search('[\u3040-\u30ff\u0600-\u06ff]', text):
+    # 2. 완성형 한글 빈도 검사 (자음/모음만 있는 경우 거름)
+    korean_chars = re.findall('[가-힣]', text)
+    if len(korean_chars) < 5: return False
+    
+    # 3. 외계어/깨진 문자/일본어/한자 차단
+    # (유니코드 범위: 일본어, 한자, 특수문자 등)
+    if re.search('[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]', text):
         return False
         
     return True
 
 def generate_game_data():
-    """Ollama에게 밸런스 게임 생성을 요청 (재시도 로직 포함)"""
+    """안정적인 밸런스 게임 생성기"""
     
-    # 카테고리를 더 구체적으로 늘려서 중복 확률을 낮춤
+    # 주제를 아주 쉽고 명확한 것으로 한정
     categories = [
-        "food taste", "love relationship", "superpower", "money vs time", 
-        "survival extreme", "personality mbti", "job career", "friendship",
-        "funny situation", "travel vacation"
+        "Food (라면 vs 햄버거)", 
+        "Love (친구 vs 애인)", 
+        "Superpower (투명인간 vs 하늘날기)", 
+        "Money (10억 받고 10년 늙기 vs 그냥 살기)", 
+        "Survival (좀비 세상 vs 무인도)", 
+        "Daily Life (평생 여름 vs 평생 겨울)"
     ]
     
-    # 최대 3번까지 재시도 (이상한 말 하면 다시 시킴)
     for attempt in range(3):
         selected_category = random.choice(categories)
         
+        # [핵심] 프롬프트를 'System'과 'User' 역할로 명확히 분리하진 못하지만,
+        # 지시사항을 아주 단순하고 강력하게 변경
         prompt = f"""
-        Create a 'Would You Rather' game for Koreans based on: '{selected_category}'.
-        
-        [RULES]
-        1. JSON Format ONLY.
-        2. Language: Korean (Questions), English (Image Keywords).
-        3. NO "Who am I?" or Meta-questions.
-        4. Option A and B must be conflicting choices.
-        
-        Format:
+        You are a funny Korean game host.
+        Create a "Would You Rather" game scenario based on: {selected_category}.
+
+        [CRITICAL RULES]
+        1. Output MUST be valid JSON.
+        2. Use NATURAL Korean (한국어). Do NOT use broken words or gibberish.
+        3. Options A and B must be short and clear.
+        4. Keywords for images must be in English.
+
+        [JSON Format Example]
         {{
-            "question": "Korean Question",
-            "option_a": "Korean Option A",
-            "keyword_a": "English Visual Keyword for A",
-            "option_b": "Korean Option B",
-            "keyword_b": "English Visual Keyword for B"
+            "question": "평생 라면만 먹기 vs 평생 탄산만 마시기",
+            "option_a": "라면만 먹기",
+            "keyword_a": "ramen noodles",
+            "option_b": "탄산만 마시기",
+            "keyword_b": "coca cola soda glass"
         }}
+        
+        Now, generate a new one. JSON only:
         """
         
         payload = {
@@ -87,37 +95,29 @@ def generate_game_data():
             "stream": False,
             "format": "json",
             "options": {
-                "temperature": 0.85,    # 창의성 (높을수록 다양함)
-                "top_p": 0.9,           # 엉뚱한 단어 자르기
-                "repeat_penalty": 1.2   # [중요] 했던 말 또 하기 방지
+                "temperature": 0.4,    # [변경] 0.85 -> 0.4 (창의성 억제, 안정성 확보)
+                "top_p": 0.9,
+                "repeat_penalty": 1.0  # [변경] 1.2 -> 1.0 (페널티 제거! 한국어 문법 살리기)
             }
         }
         
         try:
-            print(f"🤖 AI 생성 시도 ({attempt+1}/3) - 주제: {selected_category}...")
+            print(f"🤖 AI 생성 시도 ({attempt+1}/3)...")
             res = requests.post(OLLAMA_URL, json=payload, timeout=40)
             result = res.json()
             
-            if "error" in result:
-                continue
+            if "error" in result: continue
 
-            # 응답 파싱
-            content_str = result['response']
+            content = json.loads(result['response'])
             
-            # [검열 1단계] JSON 변환 가능한지
-            try:
-                content = json.loads(content_str)
-            except:
-                print("❌ JSON 형식이 깨짐. 재시도.")
+            # 검증: 질문 + 옵션 합쳐서 한국어 체크
+            full_text = content.get('question', '') + content.get('option_a', '') + content.get('option_b', '')
+            
+            if not is_valid_korean(full_text):
+                print(f"❌ 문법 오류 감지 (재시도): {full_text[:30]}...")
                 continue
 
-            # [검열 2단계] 한글이 제대로 포함되었는지 + 일본어/아랍어 없는지
-            combined_text = content.get('question', '') + content.get('option_a', '') + content.get('option_b', '')
-            if not is_valid_korean(combined_text):
-                print(f"❌ 언어 오류 감지 (외계어 또는 한글 부족): {combined_text[:20]}...")
-                continue # 다시 뽑기!
-
-            # 여기까지 통과했으면 합격!
+            # 이미지 URL 생성
             img_a = get_image_url(content.get('keyword_a', 'random'))
             img_b = get_image_url(content.get('keyword_b', 'random'))
             
@@ -131,7 +131,6 @@ def generate_game_data():
             
         except Exception as e:
             print(f"❌ 생성 에러: {e}")
-            continue # 에러 나도 다음 시도로 넘어감
+            continue
             
-    print("🚨 3번 시도 모두 실패. AI 상태를 확인하세요.")
     return None
