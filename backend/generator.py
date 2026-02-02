@@ -31,13 +31,19 @@ def get_image_url(keyword):
 
 def generate_game_data():
     """Ollama에게 밸런스 게임 생성을 요청"""
-    prompt = """
-    Create a funny, short 'Balance Game' question for Koreans.
-    Output ONLY JSON format.
+prompt = """
+    Create a 'Balance Game' (Would You Rather) scenario for Koreans.
+    
+    [Rules]
+    1. NEVER ask about yourself (e.g., "What is my name?", "Who am I?").
+    2. NEVER ask meta-questions (e.g., "Do you like this game?").
+    3. The question must be a choice between two distinct situations or items.
+    4. Make it funny, extreme, or hard to choose.
+    5. Output ONLY JSON format.
     
     Format:
     {
-        "question": "짧고 강렬한 질문 (한국어)",
+        "question": "짧고 강렬한 밸런스 게임 질문 (한국어)",
         "option_a": "선택지 A (한국어)",
         "keyword_a": "Simple English keyword for A image",
         "option_b": "선택지 B (한국어)",
