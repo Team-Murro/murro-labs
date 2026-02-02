@@ -16,7 +16,7 @@ spec:
         - name: ghcr-secret  # <--- 추가
       containers:
         - name: frontend
-          image: ghcr.io/team-murro/murro-labs/frontend:0ccd5d9b
+          image: ghcr.io/team-murro/murro-labs/frontend:d57b352f
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
