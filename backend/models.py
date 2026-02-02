@@ -50,3 +50,12 @@ class WinningStore(Base):
     # 처음 크롤링할 때는 비워두고(Null), 나중에 별도 작업으로 채울 예정입니다.
     lat = Column(Float, nullable=True) 
     lng = Column(Float, nullable=True)    
+
+class Notice(Base):
+    __tablename__ = "notices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)  # 제목
+    content = Column(String)            # 내용 (긴 텍스트)
+    is_active = Column(Integer, default=1) # 1: 보임, 0: 숨김 (Boolean 대신 Integer 사용 등 호환성 고려)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

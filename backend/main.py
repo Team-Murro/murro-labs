@@ -5,10 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, case
 from database import get_db, Base, engine
-from models import LottoDraw, Prediction, WinningStore
+from models import LottoDraw, Prediction, WinningStore, Notice
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from schemas import PredictionCreate, PredictionResponse
+from schemas import PredictionCreate, PredictionResponse, NoticeCreate, NoticeResponse
 from typing import List
 from pydantic import BaseModel
 from crawler import crawl_latest_lotto
@@ -223,3 +223,35 @@ async def recommend_menu(req: MenuRequest):
     result = await get_menu_recommendation(req.lat, req.lng, now_str)
     return result    
 
+# 1. 공지사항 목록 조회 (최신순)
+@app.get("/api/notices", response_model=List[NoticeResponse])
+def get_notices(db: Session = Depends(get_db)):
+    return db.query(Notice)\
+        .filter(Notice.is_active == 1)\
+        .order_by(Notice.created_at.desc())\
+        .all()
+
+# 2. 공지사항 작성
+@app.post("/api/notices", response_model=NoticeResponse)
+def create_notice(notice: NoticeCreate, db: Session = Depends(get_db)):
+    new_notice = Notice(
+        title=notice.title,
+        content=notice.content
+    )
+    db.add(new_notice)
+    db.commit()
+    db.refresh(new_notice)
+    return new_notice
+
+# 3. 공지사항 삭제
+@app.delete("/api/notices/{notice_id}")
+def delete_notice(notice_id: int, db: Session = Depends(get_db)):
+    target = db.query(Notice).filter(Notice.id == notice_id).first()
+    if target:
+        # 실제 삭제 대신 '숨김 처리'를 하려면 아래 줄 주석 해제
+        # target.is_active = 0 
+        db.delete(target) # 완전 삭제
+        db.commit()
+        return {"message": "삭제되었습니다."}
+    return {"error": "존재하지 않는 글입니다."}
+    

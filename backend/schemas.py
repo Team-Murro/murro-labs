@@ -24,3 +24,17 @@ class PredictionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# [추가] 공지사항 요청/응답 스키마
+class NoticeCreate(BaseModel):
+    title: str
+    content: str
+
+class NoticeResponse(BaseModel):
+    id: int
+    title: str
+    content: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
