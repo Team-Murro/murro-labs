@@ -151,28 +151,32 @@ export default function LottoPage() {
             </select>
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="w-full text-center text-sm">
-              <thead className="bg-slate-800 text-slate-400 border-b border-slate-700 uppercase text-[10px] tracking-widest font-mono">
-                <tr><th className="pb-3 text-left pl-2">닉네임</th><th className="pb-3">선택 번호</th><th className="pb-3">결과</th></tr>
+          {/* ▼ 스크롤 적용 및 높이 제한 (max-h-500px) ▼ */}
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+            <table className="w-full text-center text-sm border-collapse">
+              {/* ▼ 헤더 고정 (sticky) ▼ */}
+              <thead className="bg-slate-800 text-slate-400 border-b border-slate-700 uppercase text-[10px] tracking-widest font-mono sticky top-0 z-10 shadow-md">
+                <tr>
+                    <th className="py-3 text-left pl-2 bg-slate-800">닉네임</th>
+                    <th className="py-3 bg-slate-800">선택 번호</th>
+                    <th className="py-3 bg-slate-800">결과</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {hallOfFame.length === 0 ? <tr><td colSpan={3} className="py-8 text-slate-500">데이터가 없습니다.</td></tr> : hallOfFame.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-700/30 transition-colors">
-                    {/* 닉네임 */}
                     <td className="py-4 text-slate-300 font-bold text-left pl-2 max-w-[80px] truncate">
                         {item.username}
                     </td>
-                    
-                    {/* [수정] 번호 공 크기 확대 (w-7->w-8, text-xs->text-sm, font-bold) */}
                     <td className="py-4">
                       <div className="flex justify-center gap-1 md:gap-2 flex-wrap">
                         {[item.p_num1, item.p_num2, item.p_num3, item.p_num4, item.p_num5, item.p_num6].map((n, idx) => (
                           <div key={idx} className="relative group">
+                            {/* ▼ 공 크기 & 폰트 확대 ▼ */}
                             <span className={`
                                 flex items-center justify-center rounded-full text-white shadow-md border-b-2
-                                w-8 h-8 text-sm font-extrabold     /* 모바일: 32px, 굵은 폰트 */
-                                md:w-9 md:h-9 md:text-base         /* PC: 36px, 더 큰 폰트 */
+                                w-8 h-8 text-sm font-extrabold     /* 모바일: 32px, 굵게 */
+                                md:w-9 md:h-9 md:text-base         /* PC: 36px, 더 크게 */
                                 ${getBallColor(n)} ${getMatchStyle(n)}
                             `}>
                                 {n}
@@ -182,8 +186,6 @@ export default function LottoPage() {
                         ))}
                       </div>
                     </td>
-                    
-                    {/* 등수 배지 */}
                     <td className="py-4">
                         <span className={`inline-block px-2 py-1 rounded text-[11px] font-bold min-w-[40px] ${getRankBadge(item.rank)}`}>
                             {item.rank}
