@@ -29,7 +29,6 @@ export default function Home() {
          <Image src="/hero-banner.jpg" alt="MURRO LABS" fill className="object-cover" priority />
          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent flex items-end p-6">
             <div>
-               <h1 className="text-2xl font-bold">MURRO LABS</h1>
                <p className="text-xs text-slate-300">데이터와 AI로 일상의 행운을 실험하다</p>
             </div>
          </div>
