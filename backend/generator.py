@@ -31,77 +31,116 @@ def get_image_url(keyword):
     return f"https://picsum.photos/seed/{seed}/600/800"
 
 def generate_game_data():
-    """자연스러운 한국어 패치 완료된 생성기"""
+    """창의성보다는 '안정성'과 '짧은 길이'에 올인한 생성기"""
     
-    themes = ["음식 취향", "초능력", "연애/결혼", "극한 상황", "성격 테스트", "직장 생활"]
-    selected_theme = random.choice(themes)
-
-    # [핵심 변경] 페르소나 변경: '번역기' -> '한국인 친구'
-    # '매사적' 같은 없는 단어 쓰지 말라고(Common words) 강력 지시
-    prompt = f"""
-    You are a witty Korean friend creating a 'Balance Game' (Would You Rather).
-    Topic: {selected_theme}
-
-    [CRITICAL INSTRUCTIONS]
-    1. Language: Use 100% Natural, Casual Korean (반말). 
-    2. NO Translation style (Don't say "당신은~"). Speak like a friend.
-    3. Length: Question under 15 chars. Options under 8 chars.
-    4. Vocabulary: Use ONLY common, daily words. Do NOT use complex or made-up words.
-
-    [Bad Examples - DO NOT DO THIS]
-    - Q: 당신은 마법을 부릴 수 있다면 무엇을 하시겠습니까? (Too formal/long)
-    - A: 타인의 마음을 읽는 독심술 (Too descriptive)
+    # 주제를 더 구체적이고 일상적인 것으로 한정 (추상적인 주제 제거)
+    themes = [
+        "음식 취향 (Food)", 
+        "연애와 결혼 (Dating)", 
+        "돈과 성공 (Money)", 
+        "직장 생활 (Work)", 
+        "초능력 (Superpower)"
+    ]
     
-    [Good Examples - DO THIS]
-    - Q: 평생 한 가지만 먹기?
-    - A: 평생 라면
-    - B: 평생 탄산
-    
-    - Q: 다시 태어난다면?
-    - A: 100조 부자
-    - B: 아이큐 200 천재
+    # [안전장치] AI가 이상한 답을 내놓으면 최대 3번까지 다시 시도
+    for attempt in range(3):
+        selected_theme = random.choice(themes)
 
-    [Output JSON Format]
-    {{
-        "question": "짧은 질문 (예: 평생 솔로 vs 평생 환승이별?)",
-        "option_a": "짧은 A (예: 평생 솔로)",
-        "keyword_a": "lonely man",
-        "option_b": "짧은 B (예: 환승이별 당하기)",
-        "keyword_b": "crying woman"
-    }}
+        # [핵심] Few-Shot Prompting: 잘된 예시를 직접 보여줌으로써 패턴을 강제함
+        prompt = f"""
+        Role: You are a Korean Balance Game generator.
+        Task: Create one simple "Would You Rather" question based on the theme: "{selected_theme}".
+        
+        [STRICT RULES]
+        1. Language: Natural Korean (반말). No translation tone.
+        2. Length: Question must be UNDER 15 characters. Options must be UNDER 6 characters.
+        3. Logic: Option A and B must be opposite or conflicting.
+        4. Vocabulary: Use elementary school level words. No difficult words.
 
-    Generate JSON only.
-    """
-    
-    payload = {
-        "model": "llama3.1",
-        "prompt": prompt,
-        "stream": False,
-        "format": "json",
-        "options": {
-            "temperature": 0.8,    # 적당한 창의성
-            "top_p": 0.9,
-            "presence_penalty": 0.6 # 반복 억제
+        [PERFECT EXAMPLES - FOLLOW THIS FORMAT]
+        Example 1:
+        {{
+            "question": "평생 한 가지만 먹는다면?",
+            "option_a": "평생 라면",
+            "keyword_a": "ramen",
+            "option_b": "평생 카레",
+            "keyword_b": "curry"
+        }}
+
+        Example 2:
+        {{
+            "question": "다시 태어난다면?",
+            "option_a": "재벌 2세",
+            "keyword_a": "money",
+            "option_b": "천재 과학자",
+            "keyword_b": "scientist"
+        }}
+
+        Example 3:
+        {{
+            "question": "더 고통스러운 상황은?",
+            "option_a": "이별 통보",
+            "keyword_a": "breakup",
+            "option_b": "고백 거절",
+            "keyword_b": "rejected"
+        }}
+
+        Now, generate a NEW one in JSON format only.
+        """
+        
+        payload = {
+            "model": "llama3.1",
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.4,    # [중요] 0.8 -> 0.4 (환각 방지, 논리력 강화)
+                "top_p": 0.9,
+                "max_tokens": 120      # 답변 길이 물리적 제한
+            }
         }
-    }
-    
-    try:
-        res = requests.post(OLLAMA_URL, json=payload, timeout=12) # 타임아웃 약간 늘림
-        result = res.json()
         
-        if "response" not in result: return None
-        
-        content = json.loads(result['response'])
-        
-        # 이미지 매칭
-        content['img_a'] = get_image_url(content.get('keyword_a', 'object'))
-        content['img_b'] = get_image_url(content.get('keyword_b', 'object'))
-        
-        content.pop('keyword_a', None)
-        content.pop('keyword_b', None)
-        
-        return content
+        try:
+            res = requests.post(OLLAMA_URL, json=payload, timeout=10)
+            result = res.json()
+            
+            if "response" not in result: continue
+            
+            content = json.loads(result['response'])
+            
+            # [Python 검증 로직] AI를 믿지 말고 직접 검사
+            q_len = len(content.get('question', ''))
+            a_len = len(content.get('option_a', ''))
+            b_len = len(content.get('option_b', ''))
+            
+            # 1. 길이가 너무 길면 실패 처리 -> 재시도
+            if q_len > 20 or a_len > 10 or b_len > 10:
+                print(f"⚠️ 길이 초과로 재생성 시도 ({attempt+1}/3): Q({q_len}) A({a_len}) B({b_len})")
+                continue
+                
+            # 2. 질문에 물음표가 없으면 추가
+            if not content['question'].endswith('?'):
+                content['question'] += '?'
 
-    except Exception as e:
-        print(f"AI 생성 에러: {e}")
-        return None
+            # 이미지 URL 매칭
+            content['img_a'] = get_image_url(content.get('keyword_a', 'object'))
+            content['img_b'] = get_image_url(content.get('keyword_b', 'object'))
+            
+            # 정리 및 반환
+            content.pop('keyword_a', None)
+            content.pop('keyword_b', None)
+            
+            return content
+
+        except Exception as e:
+            print(f"AI 생성 에러 ({attempt+1}/3): {e}")
+            continue
+            
+    # 3번 다 실패했을 경우의 비상용 하드코딩 데이터 (에러 방지)
+    return {
+        "question": "AI가 잠시 쉬고 있어요",
+        "option_a": "기다리기",
+        "img_a": "https://picsum.photos/600/800",
+        "option_b": "새로고침",
+        "img_b": "https://picsum.photos/600/801"
+    }
