@@ -75,11 +75,16 @@ def generate_game_data():
         result = res.json()
         content = json.loads(result['response'])
         
-        # 이미지 검색 키워드로 URL 매칭
+# 이미지 URL 생성 및 할당
         content['img_a'] = get_image_url(content.get('keyword_a', 'object'))
         content['img_b'] = get_image_url(content.get('keyword_b', 'object'))
         
+        # [중요] DB에 없는 컬럼(keyword_a, b)은 제거하고 반환해야 에러가 안 납니다!
+        content.pop('keyword_a', None)
+        content.pop('keyword_b', None)
+        
         return content
+
     except Exception as e:
         print(f"AI 생성 에러: {e}")
         return None
