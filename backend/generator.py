@@ -4,7 +4,7 @@ import random
 import re
 
 # Unsplash 키가 없으면 랜덤 이미지가 나옵니다.
-UNSPLASH_KEY = os.getenv("la_oha92vNk0DjZF4mR25ZgHpNG0N7wiHd033LsaZHg", "")
+UNSPLASH_KEY = "la_oha92vNk0DjZF4mR25ZgHpNG0N7wiHd033LsaZHg"
 
 def get_image_url(keyword):
     """
