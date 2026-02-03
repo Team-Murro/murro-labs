@@ -12,16 +12,16 @@ export default function LottoPage() {
   const [boardTurn, setBoardTurn] = useState<number>(0);
   const [boardWinning, setBoardWinning] = useState<any>(null);
 
-  // [복구] 공 색상 로직
+  // 공 색상 로직 (그림자 및 입체감 추가)
   const getBallColor = (num: number) => {
-    if (num <= 10) return 'bg-yellow-500 border-yellow-600';
-    if (num <= 20) return 'bg-blue-500 border-blue-600';
-    if (num <= 30) return 'bg-red-500 border-red-600';
-    if (num <= 40) return 'bg-gray-500 border-gray-600';
-    return 'bg-green-500 border-green-600';
+    if (num <= 10) return 'bg-yellow-500 border-yellow-600 shadow-yellow-500/20';
+    if (num <= 20) return 'bg-blue-500 border-blue-600 shadow-blue-500/20';
+    if (num <= 30) return 'bg-red-500 border-red-600 shadow-red-500/20';
+    if (num <= 40) return 'bg-gray-500 border-gray-600 shadow-gray-500/20';
+    return 'bg-green-500 border-green-600 shadow-green-500/20';
   };
 
-  // [복구] 등수 배지 스타일
+  // 등수 배지 스타일
   const getRankBadge = (rank: string) => {
     if (rank === '1등') return 'bg-red-600 text-white animate-pulse shadow-red-500/50 shadow-lg';
     if (rank === '2등') return 'bg-orange-500 text-white shadow-orange-500/50 shadow-md';
@@ -31,20 +31,20 @@ export default function LottoPage() {
     return 'bg-slate-700 text-slate-400 border border-slate-600';
   };
 
-  // [복구] 매칭 스타일 및 체크 표시
+  // 매칭 스타일 (맞으면 반짝임 강조)
   const getMatchStyle = (myNum: number) => {
     if (!boardWinning) return "";
     const winNums = [boardWinning.num1, boardWinning.num2, boardWinning.num3, boardWinning.num4, boardWinning.num5, boardWinning.num6];
-    if (winNums.includes(myNum)) return "ring-2 ring-emerald-400 scale-110";
-    if (boardWinning.bonus === myNum) return "ring-2 ring-yellow-400 scale-110";
-    return "opacity-40 grayscale-[0.5]";
+    if (winNums.includes(myNum)) return "ring-2 ring-emerald-400 scale-110 z-10 brightness-110";
+    if (boardWinning.bonus === myNum) return "ring-2 ring-yellow-400 scale-110 z-10 brightness-110";
+    return "opacity-60 grayscale-[0.3]"; // 낙첨 번호는 살짝만 흐리게
   };
 
   const getMatchBadge = (myNum: number) => {
     if (!boardWinning) return null;
     const winNums = [boardWinning.num1, boardWinning.num2, boardWinning.num3, boardWinning.num4, boardWinning.num5, boardWinning.num6];
-    if (winNums.includes(myNum)) return <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-slate-900 z-20">✓</span>;
-    if (boardWinning.bonus === myNum) return <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-slate-900 z-20">B</span>;
+    if (winNums.includes(myNum)) return <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-slate-900 z-20 shadow-sm">✓</span>;
+    if (boardWinning.bonus === myNum) return <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-slate-900 z-20 shadow-sm">B</span>;
     return null;
   };
 
@@ -94,7 +94,7 @@ export default function LottoPage() {
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4">
       <header className="w-full max-w-2xl flex justify-between py-6">
-        <Link href="/" className="text-slate-400 font-bold">← BACK</Link>
+        <Link href="/" className="text-slate-400 font-bold hover:text-white transition-colors">← BACK</Link>
         <h1 className="text-xl font-bold">🎲 로또 분석</h1>
         <div className="w-10"></div>
       </header>
@@ -118,7 +118,7 @@ export default function LottoPage() {
           ) : <div className="py-10 animate-pulse text-slate-500">데이터 로딩 중...</div>}
         </div>
 
-        <button onClick={fetchPrediction} disabled={loading} className="w-full py-5 rounded-2xl font-bold text-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 shadow-lg">
+        <button onClick={fetchPrediction} disabled={loading} className="w-full py-5 rounded-2xl font-bold text-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 shadow-lg hover:shadow-blue-500/20 transition-all active:scale-[0.98]">
           {loading ? "AI 분석중..." : `✨ ${currentTurn > 0 ? currentTurn : ''}회차 번호 생성`}
         </button>
 
@@ -134,15 +134,15 @@ export default function LottoPage() {
                 </div>
               </div>
             ))}
-            <button onClick={handleRegisterAll} className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-2xl shadow-lg">🏆 명예의 전당 등록</button>
+            <button onClick={handleRegisterAll} className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-emerald-500/20 transition-all active:scale-[0.98]">🏆 명예의 전당 등록</button>
           </div>
         )}
 
-        {/* [복구] 명예의 전당 및 회차 선택 표시 */}
+        {/* [개선됨] 명예의 전당 및 회차 선택 표시 */}
         <div className="p-6 bg-slate-800/80 rounded-3xl border border-slate-700 shadow-xl overflow-hidden">
           <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
             <h3 className="text-xl font-bold flex items-center gap-2">🏆 명예의 전당</h3>
-            <select value={boardTurn} onChange={(e) => {const t = parseInt(e.target.value); setBoardTurn(t); fetchHallOfFame(t);}} className="bg-slate-700 text-white px-3 py-1 rounded-lg border border-slate-600 text-sm">
+            <select value={boardTurn} onChange={(e) => {const t = parseInt(e.target.value); setBoardTurn(t); fetchHallOfFame(t);}} className="bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 text-sm focus:outline-none focus:border-blue-500">
               {currentTurn > 0 && Array.from({length: 5}, (_, i) => currentTurn - i).map(t => (
                 <option key={t} value={t}>
                     {t}회 {t === currentTurn ? "(진행중)" : t === currentTurn - 1 ? "(최신결과)" : ""}
@@ -150,26 +150,45 @@ export default function LottoPage() {
               ))}
             </select>
           </div>
+          
           <div className="overflow-x-auto">
             <table className="w-full text-center text-sm">
               <thead className="bg-slate-800 text-slate-400 border-b border-slate-700 uppercase text-[10px] tracking-widest font-mono">
-                <tr><th className="pb-3">닉네임</th><th className="pb-3">선택 번호</th><th className="pb-3">결과</th></tr>
+                <tr><th className="pb-3 text-left pl-2">닉네임</th><th className="pb-3">선택 번호</th><th className="pb-3">결과</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {hallOfFame.length === 0 ? <tr><td colSpan={3} className="py-8 text-slate-500">데이터가 없습니다.</td></tr> : hallOfFame.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-700/30 transition-colors">
-                    <td className="py-4 text-slate-300 font-bold">{item.username}</td>
+                    {/* 닉네임 */}
+                    <td className="py-4 text-slate-300 font-bold text-left pl-2 max-w-[80px] truncate">
+                        {item.username}
+                    </td>
+                    
+                    {/* [수정] 번호 공 크기 확대 (w-7->w-8, text-xs->text-sm, font-bold) */}
                     <td className="py-4">
-                      <div className="flex justify-center gap-1.5">
+                      <div className="flex justify-center gap-1 md:gap-2 flex-wrap">
                         {[item.p_num1, item.p_num2, item.p_num3, item.p_num4, item.p_num5, item.p_num6].map((n, idx) => (
-                          <div key={idx} className="relative">
-                            <span className={`w-7 h-7 flex items-center justify-center rounded-full text-[10px] text-white font-bold shadow-sm border-b-2 ${getBallColor(n)} ${getMatchStyle(n)}`}>{n}</span>
+                          <div key={idx} className="relative group">
+                            <span className={`
+                                flex items-center justify-center rounded-full text-white shadow-md border-b-2
+                                w-8 h-8 text-sm font-extrabold     /* 모바일: 32px, 굵은 폰트 */
+                                md:w-9 md:h-9 md:text-base         /* PC: 36px, 더 큰 폰트 */
+                                ${getBallColor(n)} ${getMatchStyle(n)}
+                            `}>
+                                {n}
+                            </span>
                             {getMatchBadge(n)}
                           </div>
                         ))}
                       </div>
                     </td>
-                    <td className="py-4"><span className={`px-2 py-1 rounded-md text-[10px] font-bold ${getRankBadge(item.rank)}`}>{item.rank}</span></td>
+                    
+                    {/* 등수 배지 */}
+                    <td className="py-4">
+                        <span className={`inline-block px-2 py-1 rounded text-[11px] font-bold min-w-[40px] ${getRankBadge(item.rank)}`}>
+                            {item.rank}
+                        </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -177,14 +196,13 @@ export default function LottoPage() {
           </div>
         </div>
 
-        {/* [복구] 주변판매점 및 탑 100 링크 */}
         <div className="grid grid-cols-2 gap-4">
-          <Link href="/map" className="p-6 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-700 transition-colors">
-            <span className="text-3xl">🗺️</span>
+          <Link href="/map" className="p-6 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-700 transition-colors hover:border-emerald-500/50 group">
+            <span className="text-3xl group-hover:scale-110 transition-transform">🗺️</span>
             <span className="font-bold text-sm text-emerald-400">주변 판매점</span>
           </Link>
-          <Link href="/ranking" className="p-6 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-700 transition-colors">
-            <span className="text-3xl">🏆</span>
+          <Link href="/ranking" className="p-6 bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-700 transition-colors hover:border-yellow-500/50 group">
+            <span className="text-3xl group-hover:scale-110 transition-transform">🏆</span>
             <span className="font-bold text-sm text-yellow-400">당첨점 TOP 100</span>
           </Link>
         </div>
