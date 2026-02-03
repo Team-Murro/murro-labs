@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -15,15 +15,19 @@ export default function MenuPage() {
   const fetchMenus = () => {
     if (!navigator.geolocation) return alert("위치 정보가 필요합니다.");
     setLoading(true);
+    setMenuData(null);
+    setFinalMenu(null);
     navigator.geolocation.getCurrentPosition(async (pos) => {
-      const res = await fetch('/api/menu/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-      });
-      const data = await res.json();
-      setMenuData(data);
-      setLoading(false);
+      try {
+        const res = await fetch('/api/menu/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        });
+        const data = await res.json();
+        setMenuData(data);
+      } catch (e) { alert("추천 실패"); }
+      finally { setLoading(false); }
     }, () => { alert("위치 권한을 허용해주세요."); setLoading(false); });
   };
 
@@ -48,51 +52,51 @@ export default function MenuPage() {
     <div className="flex flex-col items-center min-h-screen bg-gray-900 text-white p-4">
       <header className="w-full max-w-md flex justify-between py-6">
         <Link href="/" className="text-slate-400 font-bold">← BACK</Link>
-        <h1 className="text-xl font-bold font-mono">MENU RESEARCH</h1>
+        <h1 className="text-xl font-bold font-mono">🍽️ MENU RESEARCH</h1>
         <div className="w-10"></div>
       </header>
 
-      <main className="w-full max-w-md flex flex-col items-center py-10 space-y-10">
+      <main className="w-full max-w-md flex flex-col items-center space-y-10 py-6">
         {!menuData ? (
-          <div className="text-center space-y-6">
+          <div className="text-center space-y-6 py-10">
             <div className="text-7xl grayscale opacity-30">🍽️</div>
-            <h2 className="text-xl font-bold">오늘 뭐 먹을까요?</h2>
-            <p className="text-slate-400 text-sm leading-relaxed">위치, 날씨, 시간을 분석하여<br/>당신을 위한 메뉴 6가지를 엄선합니다.</p>
-            <button onClick={fetchMenus} disabled={loading} className="px-10 py-4 bg-orange-600 rounded-2xl font-bold shadow-lg">
-               {loading ? "분석중..." : "분석 시작하기"}
+            <h2 className="text-xl font-bold">오늘의 최적 메뉴는?</h2>
+            <p className="text-slate-400 text-sm leading-relaxed">위치, 날씨, 시간 데이터를 분석하여<br/>최적의 메뉴 6가지를 제안합니다.</p>
+            <button onClick={fetchMenus} disabled={loading} className="px-10 py-4 bg-orange-600 rounded-2xl font-bold shadow-lg hover:scale-105 transition-all">
+               {loading ? "데이터 분석 중..." : "추천 시작하기"}
             </button>
           </div>
         ) : (
           <>
             <div className="bg-slate-800 p-4 rounded-2xl text-center border border-orange-500/20 w-full shadow-lg">
-               <p className="text-orange-400 font-bold mb-1 text-xs">AI 추천 코멘트</p>
-               <p className="text-slate-300 text-sm leading-relaxed">"{menuData.reason}"</p>
+               <p className="text-orange-400 font-bold mb-1 text-xs uppercase tracking-widest">AI Recommend</p>
+               <p className="text-slate-200 text-sm leading-relaxed italic">"{menuData.reason}"</p>
             </div>
 
-            {/* 기존 돌림판 UI 완벽 복구 */}
             <div className="relative w-72 h-72">
-               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 z-20 text-red-500 text-4xl">▼</div>
-               <div ref={wheelRef} className="w-full h-full rounded-full border-4 border-slate-200 overflow-hidden relative shadow-2xl bg-slate-700">
-                  {menuData.menus.map((menu: string, i: number) => (
-                    <div key={i} className="absolute w-full h-full" style={{ transform: `rotate(${i * 60 + 30}deg)`, transformOrigin: '50% 50%' }}>
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pt-6">
-                        <span className="text-white font-bold text-[10px] whitespace-nowrap writing-vertical-rl">{menu}</span>
-                      </div>
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 z-20 text-red-500 text-4xl drop-shadow-lg">▼</div>
+              <div ref={wheelRef} className="w-full h-full rounded-full border-4 border-slate-200 overflow-hidden relative shadow-2xl bg-slate-700">
+                {menuData.menus.map((menu: string, i: number) => (
+                  <div key={i} className="absolute w-full h-full" style={{ transform: `rotate(${i * 60 + 30}deg)`, transformOrigin: '50% 50%' }}>
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 h-1/2 flex justify-center pt-6">
+                      <span className="text-white font-bold text-[10px] whitespace-nowrap writing-vertical-rl font-mono">{menu}</span>
                     </div>
-                  ))}
-               </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {!finalMenu ? (
-              <button onClick={spinWheel} disabled={isSpinning} className="px-12 py-4 bg-indigo-600 rounded-full font-bold shadow-xl animate-bounce">
-                 {isSpinning ? "운명의 선택 중..." : "돌림판 돌리기"}
+              <button onClick={spinWheel} disabled={isSpinning} className="px-12 py-4 bg-indigo-600 rounded-full font-bold shadow-xl animate-bounce border border-indigo-400">
+                 {isSpinning ? "SPINNING..." : "운명의 돌림판 돌리기"}
               </button>
             ) : (
               <div className="text-center animate-fade-in-up w-full">
-                <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-8">{finalMenu}</h2>
+                <p className="text-slate-500 text-[10px] mb-2 font-mono uppercase">Your Best Pick</p>
+                <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-10">{finalMenu}</h2>
                 <div className="flex gap-4">
-                   <button onClick={fetchMenus} className="flex-1 py-4 bg-slate-800 rounded-2xl text-sm font-bold">다시 추천</button>
-                   <button onClick={() => router.push(`/restaurant-map?menu=${finalMenu}`)} className="flex-1 py-4 bg-emerald-600 rounded-2xl text-sm font-bold">🗺️ 식당 찾기</button>
+                   <button onClick={fetchMenus} className="flex-1 py-4 bg-slate-800 rounded-2xl text-sm font-bold text-slate-400">다시 추천</button>
+                   <button onClick={() => router.push(`/restaurant-map?menu=${finalMenu}`)} className="flex-1 py-4 bg-emerald-600 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-900/20">🗺️ 식당 찾기</button>
                 </div>
               </div>
             )}
