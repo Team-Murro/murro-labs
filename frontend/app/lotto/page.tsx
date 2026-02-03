@@ -154,14 +154,14 @@ export default function LottoPage() {
           {/* ▼ 스크롤 적용 및 높이 제한 (max-h-500px) ▼ */}
           <div className="overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
             <table className="w-full text-center text-sm border-collapse">
-              {/* ▼ 헤더 고정 (sticky) ▼ */}
-              <thead className="bg-slate-800 text-slate-400 border-b border-slate-700 uppercase text-[10px] tracking-widest font-mono sticky top-0 z-10 shadow-md">
-                <tr>
-                    <th className="py-3 text-left pl-2 bg-slate-800">닉네임</th>
-                    <th className="py-3 bg-slate-800">선택 번호</th>
-                    <th className="py-3 bg-slate-800">결과</th>
-                </tr>
-              </thead>
+	      {/* ▼ 헤더 고정 (sticky) 및 z-index 상향 조정 ▼ */}
+		<thead className="bg-slate-800 text-slate-400 border-b border-slate-700 uppercase text-[10px] tracking-widest font-mono sticky top-0 z-30 shadow-md">
+		  <tr>
+     		 <th className="py-3 text-left pl-2 bg-slate-800">닉네임</th>
+     		 <th className="py-3 bg-slate-800">선택 번호</th>
+     		 <th className="py-3 bg-slate-800">결과</th>
+ 		 </tr>
+		</thead>
               <tbody className="divide-y divide-slate-700/50">
                 {hallOfFame.length === 0 ? <tr><td colSpan={3} className="py-8 text-slate-500">데이터가 없습니다.</td></tr> : hallOfFame.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-700/30 transition-colors">
