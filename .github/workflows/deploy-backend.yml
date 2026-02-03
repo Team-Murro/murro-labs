@@ -45,7 +45,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.slug.outputs.sha8 }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
-          cache-to: type=gha,mode=min
+          cache-to: type=gha,mode=min,compression=zstd
 
       - name: Update Kubernetes Manifest
         run: |

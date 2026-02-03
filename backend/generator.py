@@ -9,7 +9,7 @@ OLLAMA_URL = f"{OLLAMA_HOST}/api/generate"
 UNSPLASH_KEY = os.getenv("la_oha92vNk0DjZF4mR25ZgHpNG0N7wiHd033LsaZHg", "")
 
 def get_image_url(keyword):
-    """이미지 검색 로직 (기존 동일)"""
+    """이미지 검색 로직 (기존 유지)"""
     if not UNSPLASH_KEY:
         seed = random.randint(1, 99999)
         return f"https://picsum.photos/seed/{seed}/600/800"
@@ -31,31 +31,46 @@ def get_image_url(keyword):
     return f"https://picsum.photos/seed/{seed}/600/800"
 
 def generate_game_data():
-    """진짜 짧은 밸런스 게임 생성기 (한국어 프롬프트 적용)"""
+    """자연스러운 한국어 패치 완료된 생성기"""
     
-    themes = ["음식", "초능력", "돈", "생존", "연애", "직장", "성격"]
+    themes = ["음식 취향", "초능력", "연애/결혼", "극한 상황", "성격 테스트", "직장 생활"]
     selected_theme = random.choice(themes)
 
-    # [핵심 변경] 프롬프트를 한국어로 변경하고 예시를 강제 주입
+    # [핵심 변경] 페르소나 변경: '번역기' -> '한국인 친구'
+    # '매사적' 같은 없는 단어 쓰지 말라고(Common words) 강력 지시
     prompt = f"""
-    당신은 한국의 '밸런스 게임' 마스터입니다.
-    주제 '{selected_theme}'에 대해 아주 짧고 선택하기 어려운 질문을 하나 만드세요.
+    You are a witty Korean friend creating a 'Balance Game' (Would You Rather).
+    Topic: {selected_theme}
 
-    [절대 규칙]
-    1. 질문은 20자 이내로 끝내세요. (설명 금지)
-    2. 선택지 A와 B는 5자 이내의 단어여야 합니다. (문장 금지)
-    3. 오직 JSON 형식으로만 응답하세요.
+    [CRITICAL INSTRUCTIONS]
+    1. Language: Use 100% Natural, Casual Korean (반말). 
+    2. NO Translation style (Don't say "당신은~"). Speak like a friend.
+    3. Length: Question under 15 chars. Options under 8 chars.
+    4. Vocabulary: Use ONLY common, daily words. Do NOT use complex or made-up words.
 
-    [정답 예시]
+    [Bad Examples - DO NOT DO THIS]
+    - Q: 당신은 마법을 부릴 수 있다면 무엇을 하시겠습니까? (Too formal/long)
+    - A: 타인의 마음을 읽는 독심술 (Too descriptive)
+    
+    [Good Examples - DO THIS]
+    - Q: 평생 한 가지만 먹기?
+    - A: 평생 라면
+    - B: 평생 탄산
+    
+    - Q: 다시 태어난다면?
+    - A: 100조 부자
+    - B: 아이큐 200 천재
+
+    [Output JSON Format]
     {{
-        "question": "평생 한 가지만 먹는다면?",
-        "option_a": "물렁한 라면",
-        "keyword_a": "soggy noodles",
-        "option_b": "설익은 밥",
-        "keyword_b": "uncooked rice"
+        "question": "짧은 질문 (예: 평생 솔로 vs 평생 환승이별?)",
+        "option_a": "짧은 A (예: 평생 솔로)",
+        "keyword_a": "lonely man",
+        "option_b": "짧은 B (예: 환승이별 당하기)",
+        "keyword_b": "crying woman"
     }}
 
-    위 예시처럼 JSON만 출력하세요.
+    Generate JSON only.
     """
     
     payload = {
@@ -64,25 +79,24 @@ def generate_game_data():
         "stream": False,
         "format": "json",
         "options": {
-            "temperature": 0.7,    # 창의성을 조금 낮춰서 지시를 잘 따르게 함
+            "temperature": 0.8,    # 적당한 창의성
             "top_p": 0.9,
-            "max_tokens": 100      # [중요] 답변 길이를 물리적으로 제한
+            "presence_penalty": 0.6 # 반복 억제
         }
     }
     
     try:
-        res = requests.post(OLLAMA_URL, json=payload, timeout=10)
+        res = requests.post(OLLAMA_URL, json=payload, timeout=12) # 타임아웃 약간 늘림
         result = res.json()
         
         if "response" not in result: return None
         
         content = json.loads(result['response'])
         
-        # 이미지 URL 매칭
+        # 이미지 매칭
         content['img_a'] = get_image_url(content.get('keyword_a', 'object'))
         content['img_b'] = get_image_url(content.get('keyword_b', 'object'))
         
-        # 키워드 정리
         content.pop('keyword_a', None)
         content.pop('keyword_b', None)
         
