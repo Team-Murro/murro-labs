@@ -1,0 +1,26 @@
+# 1. Playwright 공식 이미지
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
+
+# 2. 기본 설정
+WORKDIR /app
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# [핵심 수정] GPU 활용을 위해 CPU 옵션 제거!
+# 그냥 설치하면 자동으로 CUDA 지원 버전(가장 무거움)이 설치됩니다.
+RUN pip install --no-cache-dir torch
+
+# 4. 나머지 무거운 라이브러리 미리 설치
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    sqlalchemy \
+    psycopg2-binary \
+    playwright \
+    numpy \
+    ollama \
+    apscheduler \
+    prometheus-fastapi-instrumentator \
+    requests \
+    pydantic \
+    tzdata
