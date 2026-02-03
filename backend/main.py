@@ -1,4 +1,3 @@
-# backend/main.py
 import asyncio
 from fastapi import FastAPI, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,9 +18,9 @@ from store_crawler import crawl_past_winning_stores
 from geocoder import update_store_coordinates
 from menu import get_menu_recommendation
 from datetime import datetime
-from contextlib import asynccontextmanager
 from prometheus_fastapi_instrumentator import Instrumentator
-from generator import generate_game_data
+# [수정] generate_game_data 대신 이미지 URL 변환 함수만 가져옴
+from generator import get_image_url 
 import random
 
 Base.metadata.create_all(bind=engine)
@@ -102,26 +101,16 @@ async def create_prediction(pred: PredictionCreate, db: Session = Depends(get_db
     db.commit()
     return {"message": "등록 성공", "count": len(saved)}
 
-# backend/main.py 의 get_predictions 함수 교체
-
 @app.get("/api/predictions/{turn}", response_model=List[PredictionResponse])
 async def get_predictions(turn: int, db: Session = Depends(get_db)):
-    # 1. 해당 회차 당첨 번호 조회
     lotto = db.query(LottoDraw).filter(LottoDraw.turn == turn).first()
-    
-    # 2. 해당 회차의 예측 기록 조회
     preds = db.query(Prediction).filter(Prediction.turn == turn).all()
     
-    # 3. 당첨 번호가 발표된 경우에만 채점 로직 수행
     if lotto:
         win = {lotto.num1, lotto.num2, lotto.num3, lotto.num4, lotto.num5, lotto.num6}
-        
-        # 변경사항이 있는지 추적하는 플래그
         is_updated = False
         
         for p in preds:
-            # [최적화] 이미 등수가 매겨진(1등~5등, 낙첨) 건은 계산 건너뜀! 
-            # '대기중'인 것만 계산
             if p.rank == "대기중":
                 my = {p.p_num1, p.p_num2, p.p_num3, p.p_num4, p.p_num5, p.p_num6}
                 match = len(win & my)
@@ -135,7 +124,6 @@ async def get_predictions(turn: int, db: Session = Depends(get_db)):
                 
                 is_updated = True
         
-        # 변경된 게 있을 때만 DB 저장 (속도 향상)
         if is_updated:
             db.commit()
             
@@ -148,17 +136,14 @@ class FortuneRequest(BaseModel):
 async def read_fortune(req: FortuneRequest):
     return await get_fortune_reading(req.birthDate, req.birthTime, req.gender)
 
-# --- [수정 완료] 명당 랭킹 API ---
+# --- 명당 랭킹 API ---
 @app.get("/api/stores/top")
 def get_top_stores(db: Session = Depends(get_db)):
-    # 1. 좌표(lat) 필터 제거 -> 좌표 변환 안 된 데이터도 랭킹엔 나와야 함
-    # 2. 정확한 집계 (count logic)
     results = db.query(
         WinningStore.store_name,
         WinningStore.address,
         WinningStore.lat,
         WinningStore.lng,
-        # rank가 1이면 1을 더함 (횟수 집계)
         func.sum(case((WinningStore.rank == 1, 1), else_=0)).label('first_count'),
         func.sum(case((WinningStore.rank == 2, 1), else_=0)).label('second_count')
     ).group_by(
@@ -174,7 +159,7 @@ def get_top_stores(db: Session = Depends(get_db)):
     return [{
         "store_name": r.store_name,
         "address": r.address,
-        "lat": r.lat if r.lat else 0.0, # 좌표 없으면 0.0으로 처리 (지도 이동 시 예외처리 필요)
+        "lat": r.lat if r.lat else 0.0,
         "lng": r.lng if r.lng else 0.0,
         "1st": int(r.first_count or 0),
         "2nd": int(r.second_count or 0)
@@ -182,19 +167,11 @@ def get_top_stores(db: Session = Depends(get_db)):
 
 @app.get("/api/stores/all")
 def get_all_map_stores(db: Session = Depends(get_db)):
-    """
-    지도 표시용 API (수정됨)
-    - 기존: 당첨 내역을 그대로 리턴 (핀이 여러 개 겹침, 통계 안 됨)
-    - 변경: 가게별로 그룹화하여 1등/2등 횟수를 집계해서 리턴 (핀 1개, 통계 포함)
-    """
-    # 좌표가 있는 데이터만 대상으로 가게별 그룹화 수행
     results = db.query(
         WinningStore.store_name,
         WinningStore.lat,
         WinningStore.lng,
-        # 1등 횟수 집계
         func.sum(case((WinningStore.rank == 1, 1), else_=0)).label('first_count'),
-        # 2등 횟수 집계
         func.sum(case((WinningStore.rank == 2, 1), else_=0)).label('second_count')
     ).filter(
         WinningStore.lat != None
@@ -204,7 +181,6 @@ def get_all_map_stores(db: Session = Depends(get_db)):
         WinningStore.lng
     ).all()
 
-    # JSON 변환
     return [{
         "name": r.store_name,
         "lat": r.lat,
@@ -213,7 +189,7 @@ def get_all_map_stores(db: Session = Depends(get_db)):
         "second_count": int(r.second_count or 0)
     } for r in results]
 
-# 메뉴 추천 요청 스키마
+# 메뉴 추천
 class MenuRequest(BaseModel):
     lat: float
     lng: float
@@ -224,7 +200,7 @@ async def recommend_menu(req: MenuRequest):
     result = await get_menu_recommendation(req.lat, req.lng, now_str)
     return result    
 
-# 1. 공지사항 목록 조회 (최신순)
+# --- 공지사항 API ---
 @app.get("/api/notices", response_model=List[NoticeResponse])
 def get_notices(db: Session = Depends(get_db)):
     return db.query(Notice)\
@@ -232,76 +208,55 @@ def get_notices(db: Session = Depends(get_db)):
         .order_by(Notice.created_at.desc())\
         .all()
 
-# 2. 공지사항 작성
 @app.post("/api/notices", response_model=NoticeResponse)
 def create_notice(notice: NoticeCreate, db: Session = Depends(get_db)):
-    new_notice = Notice(
-        title=notice.title,
-        content=notice.content
-    )
+    new_notice = Notice(title=notice.title, content=notice.content)
     db.add(new_notice)
     db.commit()
     db.refresh(new_notice)
     return new_notice
 
-# 3. 공지사항 삭제
 @app.delete("/api/notices/{notice_id}")
 def delete_notice(notice_id: int, db: Session = Depends(get_db)):
     target = db.query(Notice).filter(Notice.id == notice_id).first()
     if target:
-        # 실제 삭제 대신 '숨김 처리'를 하려면 아래 줄 주석 해제
-        # target.is_active = 0 
-        db.delete(target) # 완전 삭제
+        db.delete(target)
         db.commit()
         return {"message": "삭제되었습니다."}
     return {"error": "존재하지 않는 글입니다."}
 
-# --- [신규] 밸런스 게임 API (Prefetching 적용) ---
-
-def bg_generate_task():
-    """백그라운드에서 실행될 AI 생성 작업"""
-    # 백그라운드 작업은 별도의 DB 세션을 열어야 안전합니다.
-    db = SessionLocal() 
-    try:
-        data = generate_game_data()
-        if data:
-            new_game = BalanceGame(**data)
-            db.add(new_game)
-            db.commit()
-            print(f"✅ [Background] 새 게임 생성 완료: {data['question']}")
-    except Exception as e:
-        print(f"❌ [Background] 생성 실패: {e}")
-    finally:
-        db.close()
+# --- [수정 완료] 밸런스 게임 API (DB 기반 랜덤 픽) ---
 
 @app.get("/api/balance/next")
-def get_next_balance_game(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    # 1. DB에 있는 게임 수 확인
-    count = db.query(BalanceGame).count()
+def get_next_balance_game(db: Session = Depends(get_db)):
+    """
+    DB에서 랜덤으로 1개를 뽑아 즉시 반환 (속도 0.1초)
+    """
+    # 1. 랜덤 정렬로 하나 추출
+    game = db.query(BalanceGame).order_by(func.random()).first()
     
-    # 2. 게임이 하나도 없으면? (최초 실행 시) -> 기다렸다가 만들어서 줌
-    if count == 0:
-        data = generate_game_data()
-        if not data: return {"error": "AI가 응답하지 않습니다."}
-        
-        first_game = BalanceGame(**data)
-        db.add(first_game)
-        db.commit()
-        
-        # 나가는 길에 하나 더 만들어두라고 시킴 (다음 사람을 위해)
-        background_tasks.add_task(bg_generate_task)
-        
-        return first_game
+    # 2. 만약 DB가 비어있다면 에러 반환 (seed.py 실행 유도)
+    if not game:
+        return {
+            "error": "질문 데이터가 없습니다. 서버 관리자에게 'seed.py' 실행을 요청하세요.",
+            "question": "데이터 준비 중...",
+            "option_a": "잠시만",
+            "option_b": "기다려주세요"
+        }
 
-    # 3. 게임이 있으면 -> 랜덤으로 하나 뽑아서 줌 (즉시 응답!)
-    rand_offset = random.randint(0, count - 1)
-    game = db.query(BalanceGame).offset(rand_offset).first()
+    # 3. DB에 저장된 영문 키워드(keyword_a/b)를 이용해 실제 이미지 URL 검색
+    # (Unsplash 검색은 빠르지만, 이것도 느리면 img_a/b 컬럼에 URL을 미리 박아두는 방법도 있음)
+    img_a = get_image_url(game.keyword_a)
+    img_b = get_image_url(game.keyword_b)
     
-    # 4. [핵심] DB에 게임이 100개 미만이면, 나가는 길에 하나 더 만들라고 예약함
-    if count < 100:
-        background_tasks.add_task(bg_generate_task)
-        
-    return game
+    return {
+        "id": game.id,
+        "question": game.question,
+        "option_a": game.option_a,
+        "img_a": img_a,
+        "option_b": game.option_b,
+        "img_b": img_b
+    }
 
 @app.post("/api/balance/{game_id}/vote")
 def vote_balance_game(game_id: int, choice: str, db: Session = Depends(get_db)):
@@ -315,7 +270,7 @@ def vote_balance_game(game_id: int, choice: str, db: Session = Depends(get_db)):
     
     # 결과 계산
     total = game.count_a + game.count_b
-    per_a = int((game.count_a / total) * 100)
+    per_a = int((game.count_a / total) * 100) if total > 0 else 50
     
     return {
         "percent_a": per_a,

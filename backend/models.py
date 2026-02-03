@@ -64,16 +64,22 @@ class BalanceGame(Base):
     __tablename__ = "balance_games"
 
     id = Column(Integer, primary_key=True, index=True)
-    question = Column(String)       # 질문 (예: 평생 라면 vs 평생 탄산)
     
-    option_a = Column(String)       # A 선택지
-    img_a = Column(String, nullable=True) # A 이미지 URL
+    # 질문 데이터
+    question = Column(String, nullable=False)   # 질문
+    option_a = Column(String, nullable=False)   # 선택지 A
+    option_b = Column(String, nullable=False)   # 선택지 B
     
-    option_b = Column(String)       # B 선택지
-    img_b = Column(String, nullable=True) # B 이미지 URL
+    # [추가됨] 이미지 검색용 영문 키워드 (seed.py에서 넣어줄 데이터)
+    keyword_a = Column(String, nullable=True)
+    keyword_b = Column(String, nullable=True)
+
+    # 이미지 URL (실제 화면에 보여질 링크)
+    img_a = Column(String, nullable=True)
+    img_b = Column(String, nullable=True)
     
-    count_a = Column(Integer, default=0) # A 투표수
-    count_b = Column(Integer, default=0) # B 투표수
+    # 투표 통계 (이 질문에 사람들이 얼마나 투표했는지 누적)
+    count_a = Column(Integer, default=0)
+    count_b = Column(Integer, default=0)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
