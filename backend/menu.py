@@ -38,7 +38,7 @@ async def recommend_menu(lat: float, lng: float):
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
-                "model": "llama3.1", 
+                "model": "llama3", 
                 "prompt": prompt,
                 "format": "json",
                 "stream": False

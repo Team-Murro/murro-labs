@@ -52,7 +52,7 @@ async def get_fortune(data: FortuneRequest):
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
-                "model": "llama3.1",  # 혹시 llama3가 아니라면 mistral 등으로 변경 필요
+                "model": "llama3",  # 혹시 llama3가 아니라면 mistral 등으로 변경 필요
                 "prompt": prompt,
                 "format": "json",
                 "stream": False
