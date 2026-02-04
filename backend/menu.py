@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import random  # [추가] 랜덤 추첨을 위해 import
 from weather import get_kma_weather
 
 # [설정] K3s 환경 대응
@@ -22,8 +23,7 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
         print(f"Weather API Error: {e}")
         condition_desc = "맑음"
 
-    # [수정] 프롬프트 대폭 단순화 (영어 지시문 + 한국어 예시)
-    # 복잡한 페르소나를 제거하고 '데이터 생성'에 집중시킵니다.
+    # [수정] 구체적인 메뉴 언급 금지 & 6개 후보 생성 요청
     prompt = f"""
     Context:
     - Time: {now_str}
@@ -31,17 +31,19 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
     - Temperature: {temp}
 
     Task:
-    1. Provide 6 distinct lunch/dinner menu names in Korean.
-    2. Select one best menu index (0-5).
-    3. Write a short reason in Korean (one sentence).
-
+    1. Provide 6 distinct lunch/dinner menu names suitable for the current weather/time.
+    2. Write a short recommendation reason in Korean (one sentence).
+    
+    [IMPORTANT constraints for 'reason']:
+    - You must describe the **vibe** or **category** (e.g., spicy, warm soup, light, greasy) that fits the weather.
+    - **NEVER** mention specific food names in the reason. (e.g., Do NOT say "I recommend Kimchi Stew".)
+    
     Format: JSON ONLY.
     
     Example:
     {{
-      "menus": ["김치찌개", "돈까스", "초밥", "삼겹살", "비빔밥", "우동"],
-      "selected_index": 0,
-      "reason": "비가 오는 날에는 따뜻하고 얼큰한 김치찌개가 최고입니다."
+      "menus": ["김치찌개", "우동", "삼겹살", "비빔밥", "파스타", "햄버거"],
+      "reason": "비가 추적추적 내리는 날에는 몸을 녹여줄 따뜻한 국물 요리가 제격이에요." 
     }}
     """
 
@@ -54,9 +56,8 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
                 "format": "json",
                 "stream": False,
                 "options": {
-                    "temperature": 0.2, # [중요] 창의성을 낮춰서 헛소리 방지 (0.5 -> 0.2)
-                    "top_p": 0.9,
-                    "repeat_penalty": 1.1 # 반복 억제
+                    "temperature": 0.3, 
+                    "top_p": 0.9
                 }
             },
             timeout=30
@@ -65,17 +66,26 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
         result_json = response.json()
         data = json.loads(result_json['response'])
         
-        # [안전장치] 이유가 너무 짧거나 이상하면 강제 수정
+        # [핵심 수정] AI가 고른 인덱스는 무시하고, 파이썬에서 '진짜 랜덤'으로 결정
+        if 'menus' in data and isinstance(data['menus'], list) and len(data['menus']) > 0:
+            # 메뉴가 6개가 안 올 수도 있으니 길이 기반으로 랜덤 산출
+            data['selected_index'] = random.randint(0, len(data['menus']) - 1)
+        else:
+            # 만약 메뉴 리스트가 깨져서 오면 비상용 리스트 사용
+            data['menus'] = ["김치찌개", "된장찌개", "비빔밥", "돈까스", "제육볶음", "우동"]
+            data['selected_index'] = random.randint(0, 5)
+
+        # 이유가 비어있거나 너무 짧으면 기본 멘트
         if len(data.get('reason', '')) < 5:
-            data['reason'] = f"지금 날씨({condition_desc})에 딱 어울리는 메뉴예요!"
+            data['reason'] = f"지금 날씨({condition_desc})에 딱 어울리는 메뉴들로 골라봤어요!"
             
         return data
         
     except Exception as e:
         print(f"Menu AI Error ({OLLAMA_HOST}): {e}")
-        # 비상용 기본값
+        # 에러 시에도 랜덤으로 돌려서 반환
         return {
             "menus": ["김치찌개", "된장찌개", "비빔밥", "돈까스", "제육볶음", "우동"],
-            "selected_index": 0, 
-            "reason": "AI가 잠시 휴식 중이라, 호불호 없는 메뉴를 골라봤어요."
+            "selected_index": random.randint(0, 5), 
+            "reason": "AI가 잠시 쉬고 있어서, 한국인의 소울푸드 중에서 랜덤으로 추천해 드릴게요."
         }
