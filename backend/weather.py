@@ -33,7 +33,6 @@ def get_current_address(lat, lng):
 
 # --- 2. 기상청 조회 ---
 def convert_to_grid(lat, lng):
-    # (좌표 변환 공식은 분량상 생략 없이 그대로 유지합니다)
     RE = 6371.00877
     GRID = 5.0
     SLAT1 = 30.0 * math.pi / 180.0
@@ -91,28 +90,32 @@ def get_kma_weather(lat, lng):
             continue
     return None
 
-# --- [추가] 3. LLM 멘트 생성 ---
+# --- [수정] 3. LLM 멘트 생성 (논리 강화) ---
 def get_weather_comment(address, temp, condition, wind):
     """
-    날씨 데이터를 바탕으로 매번 색다른 한 줄 멘트를 생성합니다.
+    날씨 데이터를 바탕으로 '말이 되는' 한 줄 멘트를 생성합니다.
     """
     prompt = f"""
     Context:
     - Location: {address}
-    - Weather: {condition}
+    - Weather: {condition} (If '맑음', it implies sunny/clear sky.)
     - Temperature: {temp}°C
     - Wind: {wind}m/s
     
     Task:
-    Write a short, witty, and helpful one-sentence weather briefing in Korean.
+    Write a short, helpful, and sensible one-sentence weather briefing in Korean.
     
-    Guidelines:
-    1. Vibe: Casual, warm, sometimes funny. Like a close friend.
-    2. Variety: Do NOT always use the same pattern. Be creative.
-    3. Content: Mention umbrella if rain/snow. Mention clothes if cold/hot.
+    [CRITICAL LOGIC RULES]:
+    1. If Weather is '맑음' (Clear): DO NOT mention umbrellas. Suggest light activities or enjoy the sun.
+    2. If Weather is '비' (Rain) or '소나기': MUST mention 'umbrella'.
+    3. If Weather is '눈' (Snow): Mention 'umbrella' or 'slippery roads'.
+    4. If Wind > 9m/s: Mention 'strong wind'.
+    5. The advice MUST strictly match the provided Weather condition. Do NOT make jokes that contradict the weather.
+
+    Tone: Warm, caring, sensible friend.
     
     Example Output JSON:
-    {{ "comment": "와, 오늘 진짜 춥네요! 롱패딩 없으면 못 버틸 날씨예요 🥶" }}
+    {{ "comment": "햇살이 참 좋은 날이에요! 잠깐 산책하며 기분 전환해보세요. ☀️" }}
     """
     
     try:
@@ -124,16 +127,21 @@ def get_weather_comment(address, temp, condition, wind):
                 "format": "json",
                 "stream": False,
                 "options": {
-                    "temperature": 0.8, # [중요] 창의성 높임 (0.8) -> 매번 다른 말 함
-                    "top_p": 0.95
+                    "temperature": 0.6, # [수정] 0.8 -> 0.6 (안정성 강화)
+                    "top_p": 0.9
                 }
             },
-            timeout=5 # 날씨 로딩은 빨라야 하므로 5초 컷 (안 되면 기본값)
+            timeout=5
         )
         
         result = response.json()
         data = json.loads(result['response'])
-        return data.get('comment', f"현재 {address} 기온은 {temp}도, 날씨는 {condition}입니다.")
+        
+        # [안전장치] 만약 멘트가 비어서 오면 기본값 사용
+        comment = data.get('comment', '')
+        if not comment:
+             return f"{address}의 현재 날씨는 {condition}, 기온은 {temp}도입니다."
+        return comment
         
     except Exception as e:
         print(f"Weather LLM Error: {e}")
