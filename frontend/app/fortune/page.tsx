@@ -49,14 +49,6 @@ export default function FortunePage() {
     fetchFortune(userData);
   };
 
-  const getBallColor = (num: number) => {
-    if (num <= 10) return 'bg-yellow-500 border-yellow-600';
-    if (num <= 20) return 'bg-blue-500 border-blue-600';
-    if (num <= 30) return 'bg-red-500 border-red-600';
-    if (num <= 40) return 'bg-gray-500 border-gray-600';
-    return 'bg-green-500 border-green-600';
-  };
-
   if (!isMounted) return <div className="min-h-screen bg-gray-900" />;
 
   return (
@@ -101,21 +93,21 @@ export default function FortunePage() {
               <h3 className="text-2xl font-bold text-purple-300 font-mono italic">SCORE: {fortuneData.total_score}</h3>
               <p className="text-slate-400 text-xs mt-2 font-mono">LUCKY COLOR: <span className="text-white font-bold uppercase">{fortuneData.lucky_color}</span></p>
             </div>
+            
+            {/* 텍스트 영역 */}
             <div className="bg-slate-900/50 p-6 rounded-2xl mb-8 border border-slate-700">
                <p className="text-slate-300 leading-relaxed text-sm whitespace-pre-wrap">{fortuneData.comment}</p>
             </div>
-            <div className="text-center">
-              <p className="text-[10px] text-slate-500 mb-4 font-mono tracking-widest uppercase">Lucky Numbers</p>
-              <div className="flex justify-center gap-2">
-                {fortuneData.lucky_numbers && fortuneData.lucky_numbers.map((n: number, i: number) => (
-                  <div key={i} className={`w-9 h-9 flex items-center justify-center rounded-full text-white font-bold text-sm border-b-2 shadow-md ${getBallColor(n)}`}>{n}</div>
-                ))}
-              </div>
-            </div>
+            
+            {/* [삭제됨] 행운의 숫자 리스트 (Lucky Numbers) 섹션 제거 */}
 
-            {/* [복구] 하단 오운완 이미지 추가 */}
-            <div className="mt-8 flex justify-center">
-                <img src="/oww2.png" alt="오늘의 운세 완료" className="w-80 max-w-full h-auto object-contain opacity-90 drop-shadow-2xl" />
+            {/* 오운완 이미지 (크기 w-80 유지) */}
+            <div className="mt-4 flex justify-center">
+                <img 
+                  src="/oww2.png" 
+                  alt="오늘의 운세 완료" 
+                  className="w-80 max-w-full h-auto object-contain opacity-90 drop-shadow-2xl" 
+                />
             </div>
 
           </div>
