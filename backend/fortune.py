@@ -1,8 +1,11 @@
 import requests
 import json
 import random
+import os
 
-# [유지] 날짜 인식 오류 방지용 (내부 계산에만 쓰고, 출력 텍스트엔 넣지 않음)
+# [수정] K3s 환경에 맞춰 OLLAMA 호스트 설정 (기본값: 10.42.0.1)
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://10.42.0.1:11434")
+
 def format_korean_date(date_str):
     try:
         parts = date_str.split('-')
@@ -24,10 +27,9 @@ async def get_fortune_reading(birth_date: str, birth_time: str, gender: str):
     - 태어난 시간: {birth_time}
     
     [지시사항]
-    1. "@@년생이시군요", "사주를 보니..." 같은 서론은 전부 생략하세요.
-    2. 바로 오늘의 재물운, 애정운, 건강운을 종합한 운세 풀이를 시작하세요.
-    3. 말투는 정중하고 부드러운 존댓말(해요체)을 사용하세요.
-    4. 텍스트 내에 행운의 숫자나 로또 번호를 절대 나열하지 마세요.
+    1. "@@년생이시군요" 같은 서론은 생략하고, 바로 운세 풀이를 시작하세요.
+    2. 말투는 정중하고 부드러운 존댓말(해요체)을 사용하세요.
+    3. 행운의 숫자나 로또 번호는 텍스트에 나열하지 마세요.
     
     [출력 형식 - JSON Only]
     {{
@@ -39,27 +41,28 @@ async def get_fortune_reading(birth_date: str, birth_time: str, gender: str):
     """
 
     try:
+        # [수정] localhost 대신 설정된 OLLAMA_HOST 사용
         response = requests.post(
-            "http://10.42.0.1:11434/api/generate",
+            f"{OLLAMA_HOST}/api/generate",
             json={
                 "model": "llama3.1", 
                 "prompt": prompt,
                 "format": "json",
                 "stream": False
-            }
+            },
+            timeout=30 # 타임아웃 추가 (네트워크 지연 대비)
         )
         
         result_json = response.json()
         data = json.loads(result_json['response'])
         
-        # 프론트엔드 호환성을 위해 lucky_numbers 필드는 빈 리스트나 임의값으로 채워둠 (화면엔 안 나옴)
         if 'lucky_numbers' not in data:
             data['lucky_numbers'] = []
             
         return data
 
     except Exception as e:
-        print(f"Fortune Error: {e}")
+        print(f"Fortune Error ({OLLAMA_HOST}): {e}")
         return {
             "wealth_luck": 80,
             "total_score": 85,
