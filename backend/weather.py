@@ -4,8 +4,7 @@ from datetime import datetime, timedelta
 import math
 
 # [본인의 Encoding 인증키를 입력하세요]
-KMA_SERVICE_KEY = "5O8amH3CuB7GG9Sao7CcPmOYOwtouzgmUr%2FGSZMR66S%2Fa%2Bm77PktiMeVaixQb1FMZhVgm2%2BcXdn8twiV1lmxzA%3D%3D
-"
+KMA_SERVICE_KEY = "5O8amH3CuB7GG9Sao7CcPmOYOwtouzgmUr%2FGSZMR66S%2Fa%2Bm77PktiMeVaixQb1FMZhVgm2%2BcXdn8twiV1lmxzA%3D%3D"
 
 def convert_to_grid(lat, lng):
     # (기존 좌표 변환 로직 그대로 유지)
