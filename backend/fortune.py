@@ -4,7 +4,7 @@ import random
 import os
 from datetime import datetime
 
-# [설정] K3s 환경 대응 (기본값: 10.42.0.1)
+# [설정] K3s 환경 대응
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://10.42.0.1:11434")
 
 def format_korean_date(date_str):
@@ -20,24 +20,24 @@ async def get_fortune_reading(birth_date: str, birth_time: str, gender: str):
     korean_date = format_korean_date(birth_date)
     today_str = datetime.now().strftime("%Y년 %m월 %d일")
 
-    # [수정] 말투를 확실한 '노인 도사' 컨셉으로 고정
+    # [수정] 복잡한 페르소나 제거, 표준어 사용 지시
     prompt = f"""
-    당신은 산속에서 50년간 수련한 사주명리학 대가 '머로도사'입니다.
+    당신은 사주명리학 전문가입니다. 아래 정보를 바탕으로 오늘의 운세를 분석해 주세요.
     
     [오늘 날짜] {today_str}
     [사용자 정보] {korean_date}생, {gender}
     
     [지시사항]
-    1. 말투: 반드시 "~~하는구려", "~~할 게야", "조심하게나", "허허" 같은 옛날 노인 도사 말투(하게체)를 쓰세요. ("해요", "습니다" 금지)
-    2. 내용: "이봐야" 같은 번역투 절대 금지. 자연스러운 한국어로 점괘를 풀이하세요.
-    3. 금전운(wealth_luck): 반드시 별 이모티콘(⭐) 1개~5개로만 표현하세요. (예: ⭐⭐⭐⭐)
+    1. 말투: 정중하고 부드러운 "해요체"(존댓말)를 사용하세요. (예: "좋은 기운이 느껴져요.")
+    2. 내용: 번역투나 어색한 문장 없이 자연스러운 한국어로 작성하세요.
+    3. 금전운(wealth_luck): 반드시 별 이모티콘(⭐) 1개~5개로만 표현하세요.
     
     [출력 예시 - JSON Only]
     {{
         "wealth_luck": "⭐⭐⭐⭐",
         "total_score": 92,
         "lucky_color": "청색",
-        "comment": "허허, 자네 오늘 기운이 아주 좋구려. 동쪽에서 귀인이 나타날 운세야. 다만 재물을 너무 탐하면 탈이 날 수 있으니 조심하게나."
+        "comment": "오늘은 주변 사람들과의 소통이 중요한 날이에요. 작은 오해가 생길 수 있으니 말조심하는 것이 좋겠어요. 행운이 당신과 함께할 거예요."
     }}
     """
 
@@ -48,18 +48,21 @@ async def get_fortune_reading(birth_date: str, birth_time: str, gender: str):
                 "model": "llama3.1", 
                 "prompt": prompt,
                 "format": "json",
-                "stream": False
+                "stream": False,
+                # [팁] 창의성보다는 안정성을 위해 온도를 낮춤
+                "options": {
+                    "temperature": 0.3 
+                }
             },
-            timeout=40 # 타임아웃 넉넉하게
+            timeout=40
         )
         
         result_json = response.json()
         data = json.loads(result_json['response'])
         
-        # [안전장치] AI가 별점을 까먹고 숫자로 주면 강제로 별로 변환
+        # [안전장치] 데이터 검증 로직 유지
         if 'wealth_luck' in data and not str(data['wealth_luck']).startswith('⭐'):
             try:
-                # 숫자로 왔을 경우 (예: 80 -> ⭐⭐⭐⭐)
                 val = str(data['wealth_luck'])
                 score = int(''.join(filter(str.isdigit, val)))
                 stars = min(5, max(1, score // 20))
@@ -74,11 +77,10 @@ async def get_fortune_reading(birth_date: str, birth_time: str, gender: str):
 
     except Exception as e:
         print(f"Fortune Error ({OLLAMA_HOST}): {e}")
-        # 에러 발생 시 기본값 리턴 (프론트 에러 방지)
         return {
             "wealth_luck": "⭐⭐⭐",
             "total_score": 70,
             "lucky_color": "황금색",
             "lucky_numbers": [],
-            "comment": "허허, 오늘은 구름이 끼어 점괘가 잘 보이지 않는구려. 잠시 뒤에 다시 찾아오게나."
+            "comment": "잠시 기운이 흐려져 운세를 읽지 못했어요. 잠시 후에 다시 시도해 주세요."
         }
