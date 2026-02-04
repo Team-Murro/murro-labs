@@ -53,7 +53,7 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
 
     try:
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            "http://10.42.0.1:11434/api/generate",
             json={
                 "model": "llama3.1", # 혹은 사용 중인 모델명 (예: 'llama3')
                 "prompt": prompt,

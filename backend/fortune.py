@@ -40,7 +40,7 @@ async def get_fortune_reading(birth_date: str, birth_time: str, gender: str):
 
     try:
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            "http://10.42.0.1:11434/api/generate",
             json={
                 "model": "llama3.1",
                 "prompt": prompt,
