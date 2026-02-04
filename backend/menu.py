@@ -22,22 +22,26 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
         print(f"Weather API Error: {e}")
         condition_desc = "맑음"
 
-    # [수정] 룰렛을 위해 6개의 메뉴를 요청하고 하나를 선택하도록 변경
+    # [수정] 프롬프트 대폭 단순화 (영어 지시문 + 한국어 예시)
+    # 복잡한 페르소나를 제거하고 '데이터 생성'에 집중시킵니다.
     prompt = f"""
-    당신은 점심/저녁 메뉴 추천 전문가입니다.
+    Context:
+    - Time: {now_str}
+    - Weather: {condition_desc}
+    - Temperature: {temp}
+
+    Task:
+    1. Provide 6 distinct lunch/dinner menu names in Korean.
+    2. Select one best menu index (0-5).
+    3. Write a short reason in Korean (one sentence).
+
+    Format: JSON ONLY.
     
-    [상황] 시간: {now_str}, 날씨: {condition_desc}, 기온: {temp}도
-    
-    [지시사항]
-    1. 현재 날씨와 상황에 어울리는 서로 다른 메뉴 6가지를 추천하세요.
-    2. 그중 가장 추천하는 메뉴 하나를 선택하세요(0~5번 인덱스 중 하나).
-    3. 추천 이유는 자연스러운 한국어로 한 문장 작성하세요.
-    
-    [출력 형식 - JSON Only]
+    Example:
     {{
-        "menus": ["김치찌개", "초밥", "파스타", "삼겹살", "햄버거", "칼국수"],
-        "selected_index": 0,
-        "reason": "비가 오니 따뜻하고 얼큰한 국물이 생각나는 날씨예요."
+      "menus": ["김치찌개", "돈까스", "초밥", "삼겹살", "비빔밥", "우동"],
+      "selected_index": 0,
+      "reason": "비가 오는 날에는 따뜻하고 얼큰한 김치찌개가 최고입니다."
     }}
     """
 
@@ -50,19 +54,28 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
                 "format": "json",
                 "stream": False,
                 "options": {
-                    "temperature": 0.5
+                    "temperature": 0.2, # [중요] 창의성을 낮춰서 헛소리 방지 (0.5 -> 0.2)
+                    "top_p": 0.9,
+                    "repeat_penalty": 1.1 # 반복 억제
                 }
             },
             timeout=30
         )
+        
         result_json = response.json()
-        return json.loads(result_json['response'])
+        data = json.loads(result_json['response'])
+        
+        # [안전장치] 이유가 너무 짧거나 이상하면 강제 수정
+        if len(data.get('reason', '')) < 5:
+            data['reason'] = f"지금 날씨({condition_desc})에 딱 어울리는 메뉴예요!"
+            
+        return data
         
     except Exception as e:
         print(f"Menu AI Error ({OLLAMA_HOST}): {e}")
-        # [중요] 에러 시에도 프론트엔드 룰렛이 깨지지 않도록 6개 리스트 반환
+        # 비상용 기본값
         return {
             "menus": ["김치찌개", "된장찌개", "비빔밥", "돈까스", "제육볶음", "우동"],
             "selected_index": 0, 
-            "reason": "AI 연결이 지연되어, 한국인의 소울푸드 중에서 골라봤어요."
+            "reason": "AI가 잠시 휴식 중이라, 호불호 없는 메뉴를 골라봤어요."
         }
