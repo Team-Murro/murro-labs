@@ -3,7 +3,7 @@ import json
 import os
 from weather import get_kma_weather
 
-# [수정] K3s 환경에 맞춰 OLLAMA 호스트 설정
+# [유지] K3s 환경 대응
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://10.42.0.1:11434")
 
 async def get_menu_recommendation(lat: float, lng: float, now_str: str):
@@ -31,7 +31,7 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
     - 기온: {temp}도
     
     [규칙]
-    1. 날씨가 '비/눈'일 때만 전, 국물 요리를 추천하세요. '맑음'이면 깔끔한 음식을 추천하세요.
+    1. 날씨가 '비'나 '눈'일 때만 전, 국물 요리를 추천하세요. '맑음'이면 깔끔한 음식을 추천하세요.
     2. 추천 메뉴는 딱 하나만 선정하고, 이유를 한 문장으로 설명하세요.
     
     [출력 형식 - JSON Only]
@@ -42,7 +42,6 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
     """
 
     try:
-        # [수정] localhost 대신 설정된 OLLAMA_HOST 사용
         response = requests.post(
             f"{OLLAMA_HOST}/api/generate",
             json={
@@ -58,4 +57,4 @@ async def get_menu_recommendation(lat: float, lng: float, now_str: str):
         
     except Exception as e:
         print(f"Menu Error ({OLLAMA_HOST}): {e}")
-        return {"menu_name": "김치찌개", "reason": "AI 연결이 원활하지 않아 가장 든든한 메뉴를 추천합니다."}
+        return {"menu_name": "된장찌개", "reason": "AI 연결이 지연되어 가장 무난한 메뉴를 추천합니다."}
