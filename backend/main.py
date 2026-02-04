@@ -22,6 +22,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 # [수정] generate_game_data 대신 이미지 URL 변환 함수만 가져옴
 from generator import get_image_url 
 import random
+from weather import get_kma_weather
 
 Base.metadata.create_all(bind=engine)
 
@@ -277,4 +278,21 @@ def vote_balance_game(game_id: int, choice: str, db: Session = Depends(get_db)):
         "percent_b": 100 - per_a,
         "count_a": game.count_a,
         "count_b": game.count_b
+    }
+
+@app.get("/api/weather/current")
+async def get_today_weather(lat: float, lng: float):
+    weather = get_kma_weather(lat, lng)
+    if not weather:
+        return {"error": "기상청 정보를 불러올 수 없습니다."}
+    
+    # 강수 코드 변환
+    pty_code = int(weather.get("PTY", 0))
+    pty_desc = {0: "맑음", 1: "비", 2: "비/눈", 3: "눈", 4: "소나기"}.get(pty_code, "정보 없음")
+    
+    return {
+        "temp": weather.get("T1H"),        # 기온
+        "humidity": weather.get("REH"),    # 습도
+        "wind": weather.get("WSD"),        # 풍속
+        "condition": pty_desc
     }

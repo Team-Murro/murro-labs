@@ -13,7 +13,6 @@ export default function Home() {
     fetch('/api/lotto/latest').then(res => res.json()).then(data => setLotto(data));
   }, []);
 
-  // 기존 볼 색상 로직 유지
   const getBallColor = (num: number) => {
     if (num <= 10) return 'bg-yellow-500 border-yellow-600';
     if (num <= 20) return 'bg-blue-500 border-blue-600';
@@ -35,14 +34,14 @@ export default function Home() {
       </div>
 
       <div className="w-full max-w-2xl space-y-10">
-        {/* 🧪 머로 연구소 */}
+        {/* 🧪 머로 연구소 (기존 유지) */}
         <section>
           <h2 className="text-xl font-bold mb-4 flex items-center px-2"><span className="mr-2">🧬</span> 머로 연구소</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div onClick={() => router.push('/lotto')} className="md:col-span-2 p-6 bg-slate-800/50 rounded-3xl border border-slate-700 shadow-xl cursor-pointer hover:bg-slate-800 transition-all group">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold text-blue-400">🎲 로또 분석</h3>
-                <span className="text-slate-500 group-hover:text-white">분석 및 명예의 전당 →</span>
+                <span className="text-slate-500 group-hover:text-white transition-colors">분석 및 명예의 전당 →</span>
               </div>
               {lotto && (
                 <div className="flex justify-between items-center">
@@ -68,7 +67,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 🎡 머로 놀이터 */}
+        {/* 🎡 머로 놀이터 (기존 유지) */}
         <section>
           <h2 className="text-xl font-bold mb-4 flex items-center px-2"><span className="mr-2">🎡</span> 머로 놀이터</h2>
           <Link href="/balance" className="block p-6 bg-slate-800 border border-slate-700 rounded-3xl hover:border-red-500/50 transition-all shadow-lg group">
@@ -85,12 +84,19 @@ export default function Home() {
           </Link>
         </section>
 
-        {/* 📚 머로 라이프 */}
-        <section className="pb-12 text-slate-400">
-          <h2 className="text-xl font-bold mb-4 flex items-center px-2 opacity-50"><span className="mr-2">📚</span> 머로 라이프</h2>
+        {/* 📚 머로 라이프 (오늘의 날씨 추가) */}
+        <section className="pb-12">
+          <h2 className="text-xl font-bold mb-4 flex items-center px-2"><span className="mr-2">📚</span> 머로 라이프</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-8 border border-slate-800 border-dashed rounded-3xl flex flex-col items-center opacity-30"><span className="text-xl mb-1">🚧</span><span className="text-[10px] font-mono tracking-widest uppercase">Preparing</span></div>
-            <div className="p-8 border border-slate-800 border-dashed rounded-3xl flex flex-col items-center opacity-30"><span className="text-xl mb-1">🚧</span><span className="text-[10px] font-mono tracking-widest uppercase">Preparing</span></div>
+            <Link href="/weather" className="p-6 bg-slate-800/50 rounded-3xl border border-slate-700 hover:border-emerald-500/50 transition-all group">
+               <h3 className="text-sm font-bold text-emerald-400 mb-2">🌦️ 오늘의 날씨</h3>
+               <p className="text-[11px] text-slate-400 leading-relaxed">기상청 실시간 데이터를 기반으로<br/>동네 날씨 정보를 알려드립니다.</p>
+            </Link>
+            {/* 남은 하나는 유지 */}
+            <div className="p-8 border border-slate-800 border-dashed rounded-3xl flex flex-col items-center opacity-30">
+               <span className="text-xl mb-1">🚧</span>
+               <span className="text-[10px] font-mono tracking-widest uppercase">Preparing</span>
+            </div>
           </div>
         </section>
       </div>
