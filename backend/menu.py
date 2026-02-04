@@ -1,33 +1,35 @@
 import ollama
 import json
 import random
-from datetime import datetime, timedelta, timezone # [추가] 시간 계산용
+from datetime import datetime, timedelta, timezone
 from weather import get_kma_weather
 
+# [수정] AI에게 '한국어 원어민' 페르소나를 강력하게 주입
 SYSTEM_PROMPT = """
-당신은 20년 경력의 미식가입니다. 
-사용자의 현재 상황(시간, 날씨)에 맞는 식사 메뉴 6가지를 추천하고, 그 중 가장 추천하는 메뉴 하나를 선택하세요.
+당신은 한국인의 입맛을 가장 잘 아는 20년 경력의 미식가입니다.
+주어진 시간과 날씨를 고려하여, 한국인이 지금 당장 먹고 싶어할 만한 메뉴 6가지를 추천하세요.
 
-[절대 원칙]
-1. 메뉴 이름은 '일반 명사'로만 출력하세요. (예: "얼큰한 짬뽕" -> "짬뽕")
-2. 반드시 JSON 형식으로만 응답하세요.
+[필수 지침]
+1. **반드시 자연스러운 한국어로 대답하세요.** 번역투나 영어 단어(trade, time 등)를 절대 쓰지 마세요.
+2. 추천 이유(reason)는 "비가 오니 파전에 막걸리가 생각나네요" 처럼 친구에게 말하듯 따뜻하고 감성적으로 작성하세요.
+3. 메뉴 이름은 수식어 없는 명사(예: "김치찌개")로만 적으세요.
+4. 응답은 오직 JSON 형식으로만 해야 합니다.
 
 JSON 형식:
 {
-  "reason": "날씨가 쌀쌀하니 뜨끈한 국물이 좋겠어요.",
-  "menus": ["칼국수", "수제비", "김치전", "짬뽕", "우동", "국밥"],
-  "selected_index": 3
+  "reason": "지금 날씨엔 뜨끈한 국물이 최고죠.",
+  "menus": ["칼국수", "김치찌개", "삼겹살", "치킨", "국밥", "떡볶이"],
+  "selected_index": 0
 }
 """
 
 async def get_menu_recommendation(lat: float, lng: float, current_time: str):
-    # [수정] main.py가 주는 시간(current_time)은 UTC라 안 맞으므로 무시하고
-    # 여기서 직접 한국 시간(KST)을 다시 계산합니다.
+    # 한국 시간 계산 (기존 유지)
     KST = timezone(timedelta(hours=9))
     now_kst = datetime.now(KST)
-    real_time_str = now_kst.strftime("%H시 %M분") # 예: "13시 30분"
+    real_time_str = now_kst.strftime("%H시 %M분")
     
-    # 1. 날씨 조회
+    # 날씨 조회 (기존 유지)
     weather = get_kma_weather(lat, lng)
     if weather:
         temp = weather.get("T1H", "??")
@@ -37,8 +39,12 @@ async def get_menu_recommendation(lat: float, lng: float, current_time: str):
     else:
         w_str = "날씨 정보 없음"
 
-    # 2. AI 추천 요청 (보정된 한국 시간 사용)
-    prompt = f"현재 시간: {real_time_str}, 날씨: {w_str}. 이 상황에 어울리는 메뉴 6개를 추천하고 베스트 메뉴의 인덱스(0~5)를 selected_index에 넣어줘."
+    # [수정] 프롬프트를 더 직관적인 한국어 문장으로 변경
+    prompt = f"""
+    지금 시각은 {real_time_str}이고, 날씨는 {w_str}입니다.
+    이 상황에 딱 어울리는 저녁(또는 점심/야식) 메뉴 6개를 골라주세요.
+    그리고 그 중에서 가장 추천하는 메뉴 하나를 selected_index(0~5)로 지정해주세요.
+    """
     
     try:
         res = ollama.chat(
@@ -48,6 +54,7 @@ async def get_menu_recommendation(lat: float, lng: float, current_time: str):
         )
         data = json.loads(res['message']['content'])
         
+        # 인덱스 안전장치 (기존 유지)
         if not (0 <= data.get('selected_index', -1) < 6):
             data['selected_index'] = random.randint(0, 5)
             
@@ -56,7 +63,7 @@ async def get_menu_recommendation(lat: float, lng: float, current_time: str):
     except Exception as e:
         print(f"AI Error: {e}")
         return {
-            "reason": "AI가 잠시 휴식 중입니다. 대신 골라드릴게요!",
-            "menus": ["돈까스", "제육볶음", "김치찌개", "비빔밥", "칼국수", "햄버거"],
+            "reason": "AI가 메뉴를 고르는 중입니다. 잠시만 기다려주세요!",
+            "menus": ["김치찌개", "된장찌개", "삼겹살", "치킨", "라면", "비빔밥"],
             "selected_index": 0
         }
