@@ -1,68 +1,74 @@
-# backend/fortune.py
-import ollama
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+import requests
 import json
 import random
-from datetime import datetime
 
-# 시스템 프롬프트 강화: 한국어 강제 및 다국어 사용 금지
-SYSTEM_PROMPT = """
-당신은 30년 경력의 용한 사주명리학자 '머로도사'입니다. 
-사용자의 '생년월일', '태어난 시간', '성별'을 바탕으로 오늘의 운세를 풀이합니다.
+router = APIRouter()
 
-[절대 원칙]
-1. **무조건 한국어(Korean)로만 작성하세요.** (영어, 이탈리아어 금지)
-2. 말투는 "~~하는구려", "~~할 게야", "조심하게나" 같은 노인 도사 말투를 유지하세요.
-3. 운세 내용은 최소 5문장 이상으로 길고 풍성하게 작성하세요.
-4. 답변은 오직 **JSON 데이터만** 출력하세요.
+# [수정] Ollama 모델이 더 똑똑하게 알아먹도록 날짜 포맷팅 함수 추가
+def format_korean_date(date_str):
+    try:
+        # yyyy-mm-dd 형식이면 분리해서 한글로 리턴
+        parts = date_str.split('-')
+        if len(parts) == 3:
+            return f"{parts[0]}년 {parts[1]}월 {parts[2]}일"
+        return date_str
+    except:
+        return date_str
 
-반드시 아래 JSON 형식을 지키세요:
-{
-  "total_score": 90,
-  "comment": "자네는 오늘 하늘의 기운이 머리 위로 쏟아지는 형국이네. (한국어로 길게 작성)",
-  "lucky_numbers": [3, 12, 25, 33, 41, 44],
-  "lucky_color": "황금색",
-  "wealth_luck": "⭐⭐⭐⭐⭐"
-}
-"""
+class FortuneRequest(BaseModel):
+    birthDate: str
+    birthTime: str
+    gender: str
 
-async def get_fortune_reading(birth_date: str, birth_time: str, gender: str):
-    today = datetime.now().strftime("%Y년 %m월 %d일")
-    time_str = birth_time if birth_time else "시간 모름"
-
-    user_prompt = f"""
-    [명령] 오늘 날짜: {today}
-    사용자: {birth_date}생, 시간: {time_str}, 성별: {gender}
+@router.post("/fortune")
+async def get_fortune(data: FortuneRequest):
+    # [수정] 입력된 날짜를 확실한 한글 포맷으로 변환
+    korean_date = format_korean_date(data.birthDate)
     
-    이 사람의 오늘 운세를 한국어로 아주 자세하게 봐주게. 다른 언어는 절대 섞지 말게.
+    # 프롬프트 강화: 날짜를 절대 바꾸지 말라고 신신당부
+    prompt = f"""
+    당신은 전문적인 사주팔자 상담사입니다. 아래 사용자의 정보를 바탕으로 오늘의 운세를 봐주세요.
+    
+    [사용자 정보]
+    - 생년월일: {korean_date} (이 날짜를 절대 변경하지 마세요. 사용자는 {korean_date}에 태어났습니다.)
+    - 성별: {data.gender}
+    - 태어난 시간: {data.birthTime}
+    
+    [출력 형식 - JSON]
+    반드시 아래 JSON 형식으로만 답변하세요. 마크다운이나 잡담은 하지 마세요.
+    {{
+        "wealth_luck": "금전운 점수 (0~100)",
+        "total_score": "총점 (0~100)",
+        "lucky_color": "행운의 색상 (영어)",
+        "lucky_numbers": [숫자1, 숫자2, 숫자3, 숫자4, 숫자5, 숫자6],
+        "comment": "운세 상세 풀이 (존댓말로 친절하게, {korean_date}생이라는 점을 언급하며 해석)"
+    }}
     """
 
     try:
-        response = ollama.chat(
-            model='llama3.1',
-            messages=[
-                {'role': 'system', 'content': SYSTEM_PROMPT},
-                {'role': 'user', 'content': user_prompt},
-            ],
-            format='json',
-            options={'temperature': 0.6} # 0.8 -> 0.6으로 낮춤 (안정성 강화)
+        # 올라마 호출 (모델명은 사용 중인 것으로 유지)
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "llama3.1",  # 혹시 llama3가 아니라면 mistral 등으로 변경 필요
+                "prompt": prompt,
+                "format": "json",
+                "stream": False
+            }
         )
         
-        content = response['message']['content']
-        result = json.loads(content)
-        
-        # 번호 검증 로직
-        nums = result.get('lucky_numbers', [])
-        if len(nums) != 6 or not all( isinstance(n, int) and 1 <= n <= 45 for n in nums):
-            result['lucky_numbers'] = sorted(random.sample(range(1, 46), 6))
-            
-        return result
-        
+        result = response.json()
+        return json.loads(result['response'])
+
     except Exception as e:
-        print(f"⚠️ 운세 생성 에러: {e}")
+        print(f"Ollama Error: {e}")
+        # 에러 발생 시 더미 데이터라도 리턴해서 프론트가 죽지 않게 함
         return {
-            "total_score": 60,
-            "comment": "오늘은 기가 흐릿하여 점괘가 잘 보이지 않는구려. 잠시 후 다시 시도하게나.",
-            "lucky_numbers": sorted(random.sample(range(1, 46), 6)),
-            "lucky_color": "회색",
-            "wealth_luck": "⭐⭐"
+            "wealth_luck": 85,
+            "total_score": 90,
+            "lucky_color": "Gold",
+            "lucky_numbers": [7, 12, 23, 34, 41, 45],
+            "comment": "죄송합니다. 인공지능 신령님이 잠시 자리를 비우셨네요. (서버 연결 오류) 하지만 오늘 당신의 운세는 맑음입니다!"
         }

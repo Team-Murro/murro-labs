@@ -115,7 +115,7 @@ export default function FortunePage() {
 
             {/* [복구] 하단 오운완 이미지 추가 */}
             <div className="mt-8 flex justify-center">
-                <img src="/oww2.png" alt="오늘의 운세 완료" className="w-32 opacity-80" />
+                <img src="/oww2.png" alt="오늘의 운세 완료" className="w-80 max-w-full h-auto object-contain opacity-90 drop-shadow-2xl" />
             </div>
 
           </div>

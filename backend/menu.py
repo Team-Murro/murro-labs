@@ -1,69 +1,52 @@
-import ollama
+from fastapi import APIRouter
+from pydantic import BaseModel
+import requests
 import json
-import random
-from datetime import datetime, timedelta, timezone
-from weather import get_kma_weather
+# weather.py에서 get_weather 함수 가져오기 (파일이 같은 폴더에 있어야 함)
+from .weather import get_weather 
 
-# [수정] AI에게 '한국어 원어민' 페르소나를 강력하게 주입
-SYSTEM_PROMPT = """
-당신은 한국인의 입맛을 가장 잘 아는 20년 경력의 미식가입니다.
-주어진 시간과 날씨를 고려하여, 한국인이 지금 당장 먹고 싶어할 만한 메뉴 6가지를 추천하세요.
+router = APIRouter()
 
-[필수 지침]
-1. **반드시 자연스러운 한국어로 대답하세요.** 번역투나 영어 단어(trade, time 등)를 절대 쓰지 마세요.
-2. 추천 이유(reason)는 "비가 오니 파전에 막걸리가 생각나네요" 처럼 친구에게 말하듯 따뜻하고 감성적으로 작성하세요.
-3. 메뉴 이름은 수식어 없는 명사(예: "김치찌개")로만 적으세요.
-4. 응답은 오직 JSON 형식으로만 해야 합니다.
+@router.get("/menu/recommend")
+async def recommend_menu(lat: float, lng: float):
+    # 1. 날씨 가져오기
+    weather_info = get_weather(lat, lng) # { "condition": "Clear", "temp": 20.5 }
+    current_weather = weather_info.get("condition", "Unknown")
+    current_temp = weather_info.get("temp", "Unknown")
 
-JSON 형식:
-{
-  "reason": "지금 날씨엔 뜨끈한 국물이 최고죠.",
-  "menus": ["칼국수", "김치찌개", "삼겹살", "치킨", "국밥", "떡볶이"],
-  "selected_index": 0
-}
-"""
-
-async def get_menu_recommendation(lat: float, lng: float, current_time: str):
-    # 한국 시간 계산 (기존 유지)
-    KST = timezone(timedelta(hours=9))
-    now_kst = datetime.now(KST)
-    real_time_str = now_kst.strftime("%H시 %M분")
-    
-    # 날씨 조회 (기존 유지)
-    weather = get_kma_weather(lat, lng)
-    if weather:
-        temp = weather.get("T1H", "??")
-        pty = int(weather.get("PTY", 0))
-        cond = {0:"맑음", 1:"비", 2:"비/눈", 3:"눈", 4:"소나기"}.get(pty, "흐림")
-        w_str = f"{cond}, 기온 {temp}도"
-    else:
-        w_str = "날씨 정보 없음"
-
-    # [수정] 프롬프트를 더 직관적인 한국어 문장으로 변경
+    # [수정] 프롬프트 대폭 수정: 헷갈리는 예시 삭제하고 조건 강화
     prompt = f"""
-    지금 시각은 {real_time_str}이고, 날씨는 {w_str}입니다.
-    이 상황에 딱 어울리는 저녁(또는 점심/야식) 메뉴 6개를 골라주세요.
-    그리고 그 중에서 가장 추천하는 메뉴 하나를 selected_index(0~5)로 지정해주세요.
-    """
+    당신은 점심 메뉴 추천 전문가입니다.
     
-    try:
-        res = ollama.chat(
-            model='llama3.1',
-            messages=[{'role': 'system', 'content': SYSTEM_PROMPT}, {'role': 'user', 'content': prompt}],
-            format='json'
-        )
-        data = json.loads(res['message']['content'])
-        
-        # 인덱스 안전장치 (기존 유지)
-        if not (0 <= data.get('selected_index', -1) < 6):
-            data['selected_index'] = random.randint(0, 5)
-            
-        return data
+    [현재 상황]
+    - 날씨: {current_weather} (이 날씨에 맞는 음식만 추천할 것)
+    - 기온: {current_temp}도
+    
+    [지시사항]
+    1. 날씨가 'Rain'이나 'Drizzle'이면 따뜻한 국물이나 전을 추천하세요.
+    2. 날씨가 'Clear'나 'Sunny'라면 절대로 비 오는 날 음식을 언급하지 말고, 깔끔한 음식을 추천하세요.
+    3. 앞뒤 문맥이 모순되지 않게 하나의 추천 이유만 말하세요.
+    
+    [출력 형식 - JSON Only]
+    {{
+        "menu_name": "음식 이름",
+        "reason": "추천 이유 (한 문장으로 짧게, 날씨를 반영해서)"
+    }}
+    """
 
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "llama3.1", 
+                "prompt": prompt,
+                "format": "json",
+                "stream": False
+            }
+        )
+        result = response.json()
+        return json.loads(result['response'])
     except Exception as e:
-        print(f"AI Error: {e}")
-        return {
-            "reason": "AI가 메뉴를 고르는 중입니다. 잠시만 기다려주세요!",
-            "menus": ["김치찌개", "된장찌개", "삼겹살", "치킨", "라면", "비빔밥"],
-            "selected_index": 0
-        }
+        print(f"Menu Error: {e}")
+        # 에러 시 기본값
+        return {"menu_name": "제육볶음", "reason": "인공지능도 고민하다가 결국 제육을 골랐습니다."}
