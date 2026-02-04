@@ -22,7 +22,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 # [수정] generate_game_data 대신 이미지 URL 변환 함수만 가져옴
 from generator import get_image_url 
 import random
-from weather import get_kma_weather, get_current_address
+from weather import get_kma_weather, get_current_address, get_weather_comment
 
 Base.metadata.create_all(bind=engine)
 
@@ -282,23 +282,29 @@ def vote_balance_game(game_id: int, choice: str, db: Session = Depends(get_db)):
 
 @app.get("/api/weather/current")
 async def get_today_weather(lat: float, lng: float):
-    # 1. 날씨 조회
+    # 1. 날씨 & 주소 조회 (빠름)
     weather = get_kma_weather(lat, lng)
-    
-    # 2. 주소 조회 (Kakao API)
     address = get_current_address(lat, lng)
 
     if not weather:
         return {"error": "기상청 정보를 불러올 수 없습니다."}
     
-    # 강수 코드 변환
+    # 데이터 가공
     pty_code = int(weather.get("PTY", 0))
     pty_desc = {0: "맑음", 1: "비", 2: "비/눈", 3: "눈", 4: "소나기"}.get(pty_code, "정보 없음")
+    temp = weather.get("T1H", "0")
+    wind = weather.get("WSD", "0")
+
+    # 2. [추가] LLM에게 멘트 요청 (최대 5초 소요)
+    # 팁: 여기서 await loop.run_in_executor 등을 쓰면 더 좋지만, 
+    # 현재 사용자 규모(개인용)에서는 직접 호출해도 무방합니다.
+    comment = get_weather_comment(address, temp, pty_desc, wind)
     
     return {
-        "address": address,                # [추가] 주소 정보 (예: 서울 강남구 역삼동)
-        "temp": weather.get("T1H"),        
-        "humidity": weather.get("REH"),    
-        "wind": weather.get("WSD"),        
-        "condition": pty_desc
+        "address": address,
+        "temp": temp,
+        "humidity": weather.get("REH"),
+        "wind": wind,
+        "condition": pty_desc,
+        "comment": comment  # [핵심] 생성된 멘트 포함
     }

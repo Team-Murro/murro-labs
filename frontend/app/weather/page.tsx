@@ -28,7 +28,7 @@ export default function WeatherPage() {
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] text-slate-400">
       <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
-      <p className="text-sm font-mono">기상청 연결 중...</p>
+      <p className="text-sm font-mono">기상청 연결 및 AI 분석 중...</p>
     </div>
   );
 
@@ -39,7 +39,7 @@ export default function WeatherPage() {
         <h1 className="text-xl font-bold">오늘의 날씨</h1>
       </header>
 
-      {/* [추가] 현재 위치 표시 영역 */}
+      {/* 현재 위치 */}
       {weather?.address && (
         <div className="flex items-center justify-center gap-2 text-slate-400 text-sm animate-fade-in">
           <span>📍</span>
@@ -47,6 +47,7 @@ export default function WeatherPage() {
         </div>
       )}
 
+      {/* 메인 날씨 카드 */}
       <div className="p-10 rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 shadow-2xl text-center">
         <p className="text-emerald-400 font-bold mb-2">현재 기온</p>
         <h2 className="text-7xl font-black text-white mb-6 font-mono">{weather?.temp}°</h2>
@@ -55,6 +56,7 @@ export default function WeatherPage() {
         </div>
       </div>
 
+      {/* 습도/풍속 그리드 */}
       <div className="grid grid-cols-2 gap-4">
         <div className="p-6 rounded-3xl bg-slate-800/50 border border-slate-700">
           <p className="text-xs text-slate-500 mb-1">습도</p>
@@ -66,9 +68,14 @@ export default function WeatherPage() {
         </div>
       </div>
 
-      <div className="p-6 rounded-3xl bg-slate-800/30 border border-slate-800 text-center">
-        <p className="text-sm text-slate-400">
-          기상청 초단기실황 데이터를 바탕으로 제공됩니다.
+      {/* [수정] AI 코멘트 영역 */}
+      {/* 백엔드에서 생성한 '변화무쌍한' 멘트를 그대로 출력 */}
+      <div className="p-6 rounded-3xl bg-emerald-900/20 border border-emerald-500/30 text-center animate-pulse-slow">
+        <p className="text-emerald-200 font-medium break-keep leading-relaxed text-lg">
+          "{weather?.comment}"
+        </p>
+        <p className="text-[10px] text-emerald-500/50 mt-2 uppercase tracking-widest">
+           AI Weather Briefing
         </p>
       </div>
     </div>
