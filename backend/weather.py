@@ -35,11 +35,10 @@ def convert_to_grid(lat, lng):
     return nx, ny
 
 def get_kma_weather(lat, lng):
-    """기상청 초단기실황 API 호출"""
     nx, ny = convert_to_grid(lat, lng)
     url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
     
-    # 기상청은 매시 40분에 데이터가 생성됨 (안전하게 현재 시간 기준 45분 전 데이터 조회)
+    # 발표 시각 로직 최적화
     base_datetime = datetime.now() - timedelta(minutes=45)
     base_date = base_datetime.strftime("%Y%m%d")
     base_time = base_datetime.strftime("%H00")
@@ -49,16 +48,18 @@ def get_kma_weather(lat, lng):
         "base_date": base_date,
         "base_time": base_time,
         "nx": nx, "ny": ny,
-        "dataType": "JSON", "numOfRows": 10
+        "dataType": "JSON"
     }
     
     try:
         res = requests.get(url, params=params, timeout=5)
         data = res.json()
-        if data['response']['header']['resultCode'] == '00':
-            items = data['response']['body']['items']['item']
-            # T1H(기온), PTY(강수형태), REH(습도)
-            return {item['category']: item['obsrValue'] for item in items}
+        # 데이터 존재 여부 2중 체크
+        if data.get('response', {}).get('header', {}).get('resultCode') == '00':
+            body = data.get('response', {}).get('body', {})
+            if body and body.get('items'):
+                items = body['items']['item']
+                return {item['category']: item['obsrValue'] for item in items}
     except Exception as e:
         print(f"Weather API Error: {e}")
     return None
