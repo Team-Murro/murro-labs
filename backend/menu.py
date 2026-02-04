@@ -1,7 +1,7 @@
-# backend/menu.py
 import ollama
 import json
 import random
+from datetime import datetime, timedelta, timezone # [추가] 시간 계산용
 from weather import get_kma_weather
 
 SYSTEM_PROMPT = """
@@ -21,6 +21,12 @@ JSON 형식:
 """
 
 async def get_menu_recommendation(lat: float, lng: float, current_time: str):
+    # [수정] main.py가 주는 시간(current_time)은 UTC라 안 맞으므로 무시하고
+    # 여기서 직접 한국 시간(KST)을 다시 계산합니다.
+    KST = timezone(timedelta(hours=9))
+    now_kst = datetime.now(KST)
+    real_time_str = now_kst.strftime("%H시 %M분") # 예: "13시 30분"
+    
     # 1. 날씨 조회
     weather = get_kma_weather(lat, lng)
     if weather:
@@ -31,8 +37,8 @@ async def get_menu_recommendation(lat: float, lng: float, current_time: str):
     else:
         w_str = "날씨 정보 없음"
 
-    # 2. AI 추천 요청
-    prompt = f"현재 시간: {current_time}, 날씨: {w_str}. 이 상황에 어울리는 메뉴 6개를 추천하고 베스트 메뉴의 인덱스(0~5)를 selected_index에 넣어줘."
+    # 2. AI 추천 요청 (보정된 한국 시간 사용)
+    prompt = f"현재 시간: {real_time_str}, 날씨: {w_str}. 이 상황에 어울리는 메뉴 6개를 추천하고 베스트 메뉴의 인덱스(0~5)를 selected_index에 넣어줘."
     
     try:
         res = ollama.chat(
@@ -42,7 +48,6 @@ async def get_menu_recommendation(lat: float, lng: float, current_time: str):
         )
         data = json.loads(res['message']['content'])
         
-        # [안전장치] AI가 인덱스를 잘못 줄 경우를 대비해 범위 체크
         if not (0 <= data.get('selected_index', -1) < 6):
             data['selected_index'] = random.randint(0, 5)
             
