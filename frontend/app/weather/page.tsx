@@ -39,6 +39,14 @@ export default function WeatherPage() {
         <h1 className="text-xl font-bold">오늘의 날씨</h1>
       </header>
 
+      {/* [추가] 현재 위치 표시 영역 */}
+      {weather?.address && (
+        <div className="flex items-center justify-center gap-2 text-slate-400 text-sm animate-fade-in">
+          <span>📍</span>
+          <span className="font-bold text-slate-200">{weather.address}</span>
+        </div>
+      )}
+
       <div className="p-10 rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 shadow-2xl text-center">
         <p className="text-emerald-400 font-bold mb-2">현재 기온</p>
         <h2 className="text-7xl font-black text-white mb-6 font-mono">{weather?.temp}°</h2>

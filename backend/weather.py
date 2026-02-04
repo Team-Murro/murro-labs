@@ -1,14 +1,38 @@
-# backend/weather.py
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import math
 
-# [중요] 여기에 공공데이터포털의 'Decoding Key (일반 인증키 - 디코딩)'를 붙여넣으세요!
-# 예: KMA_SERVICE_KEY = "1+2abc..." (끝에 % 기호가 거의 없는 깨끗한 키입니다)
+# [설정] 공공데이터포털 키
 KMA_SERVICE_KEY = "5O8amH3CuB7GG9Sao7CcPmOYOwtouzgmUr/GSZMR66S/a+m77PktiMeVaixQb1FMZhVgm2+cXdn8twiV1lmxzA==" 
+# [추가] 카카오 API 키 (geocoder.py의 키 재사용)
+KAKAO_API_KEY = "e624c4d7b64f667821aa5c0f411361ad"
+
+def get_current_address(lat, lng):
+    """
+    좌표(lat, lng)를 받아 '서울 강남구 역삼동' 형태의 주소 문자열 반환
+    """
+    url = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
+    headers = {"Authorization": f"KakaoAK {KAKAO_API_KEY}"}
+    params = {"x": lng, "y": lat} # 카카오는 x가 경도(lng), y가 위도(lat)
+    
+    try:
+        res = requests.get(url, headers=headers, params=params, timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            if data.get('documents'):
+                # 행정동(H)을 우선 사용하고, 없으면 법정동(B) 사용
+                doc = data['documents'][0]
+                for d in data['documents']:
+                    if d['region_type'] == 'H':
+                        doc = d
+                        break
+                return f"{doc['region_1depth_name']} {doc['region_2depth_name']} {doc['region_3depth_name']}"
+    except Exception as e:
+        print(f"Address API Error: {e}")
+        
+    return "위치 정보 없음"
 
 def convert_to_grid(lat, lng):
-    # (좌표 변환 로직은 기존과 동일하므로 생략하지 않고 그대로 둡니다)
     RE = 6371.00877
     GRID = 5.0
     SLAT1 = 30.0 * math.pi / 180.0
@@ -44,15 +68,18 @@ def get_kma_weather(lat, lng):
     nx, ny = convert_to_grid(lat, lng)
     url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
     
-    # 1시간씩 뒤로 가며 데이터 찾기 (최대 3회 시도 - 먹통 방지)
+    # [수정] 서버 시간이 UTC여도 무조건 한국 시간(KST)으로 계산
+    kst_timezone = timezone(timedelta(hours=9))
+    current_kst = datetime.now(kst_timezone)
+    
     for i in range(3):
         try:
-            target_time = datetime.now() - timedelta(minutes=45 + (i*60))
+            target_time = current_kst - timedelta(minutes=45 + (i*60))
             base_date = target_time.strftime("%Y%m%d")
             base_time = target_time.strftime("%H00")
 
             params = {
-                "serviceKey": KMA_SERVICE_KEY,  # 디코딩 키를 그대로 사용
+                "serviceKey": KMA_SERVICE_KEY,
                 "base_date": base_date,
                 "base_time": base_time,
                 "nx": nx, "ny": ny,
@@ -60,7 +87,6 @@ def get_kma_weather(lat, lng):
                 "numOfRows": 10
             }
             
-            # 타임아웃 15초 유지 (기상청 서버 느릴 때 대비)
             res = requests.get(url, params=params, timeout=15)
             
             if res.status_code == 200:
