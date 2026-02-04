@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-// [복구 완료] 회원님의 기존 키를 다시 넣었습니다. 이대로 바로 실행됩니다.
 const KAKAO_JS_KEY = "9cc09fdfe6ab741a49587a4afcccf613";
 
 function MapContent() {
@@ -14,9 +13,11 @@ function MapContent() {
   const [places, setPlaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  
+  // [수정] 현재 열려있는 인포윈도우를 추적하기 위한 Ref 추가
+  const activeInfoWindowRef = useRef<any>(null);
 
   useEffect(() => {
-    // 키가 없으면 실행 중단 (안전장치)
     if (!KAKAO_JS_KEY) return;
 
     const script = document.createElement('script');
@@ -37,7 +38,6 @@ function MapContent() {
             const mapInstance = new window.kakao.maps.Map(mapContainerRef.current, options);
             setMap(mapInstance);
             
-            // 지도 로드 후 바로 검색
             if (menu) {
                setTimeout(() => searchPlaces(mapInstance, menu), 500);
             }
@@ -51,12 +51,18 @@ function MapContent() {
     if (!currentMap || !keyword) return;
     setLoading(true);
     
+    // 검색 시 기존 열려있는 인포윈도우 닫기
+    if (activeInfoWindowRef.current) {
+        activeInfoWindowRef.current.close();
+        activeInfoWindowRef.current = null;
+    }
+    
     const ps = new window.kakao.maps.services.Places();
     const center = currentMap.getCenter();
     
     const options = {
       location: center,
-      radius: 1500, // 1.5km 반경
+      radius: 1500,
       sort: window.kakao.maps.services.SortBy.DISTANCE,
     };
 
@@ -79,9 +85,41 @@ function MapContent() {
       const marker = new window.kakao.maps.Marker({ position: markerPosition });
       marker.setMap(currentMap);
       
+      // [수정] 마커 클릭 이벤트 로직 변경 (바로 이동 -> 정보창 표시)
       window.kakao.maps.event.addListener(marker, 'click', () => {
-        window.open(place.place_url, '_blank');
+        // 1. 기존에 열려있는 인포윈도우가 있다면 닫기
+        if (activeInfoWindowRef.current) {
+            activeInfoWindowRef.current.close();
+        }
+
+        // 2. 인포윈도우에 들어갈 HTML 컨텐츠 생성
+        const content = `
+          <div style="padding:10px; min-width:180px; color:#1e293b; font-family:sans-serif;">
+            <div style="font-weight:bold; margin-bottom:5px; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                ${place.place_name}
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-bottom:8px;">
+                ${place.category_name ? place.category_name.split('>').pop()?.trim() : ''}
+            </div>
+            <a href="${place.place_url}" target="_blank" style="display:block; width:100%; padding:6px 0; background-color:#fb923c; color:white; text-align:center; text-decoration:none; font-size:12px; font-weight:bold; border-radius:4px;">
+                상세보기 >
+            </a>
+          </div>
+        `;
+
+        // 3. 인포윈도우 생성 및 지도에 표시
+        const infowindow = new window.kakao.maps.InfoWindow({
+            content: content,
+            removable: true, // 닫기 버튼 표시
+            zIndex: 10 // 다른 요소보다 위에 표시
+        });
+
+        infowindow.open(currentMap, marker);
+        
+        // 4. 현재 열린 인포윈도우를 Ref에 저장
+        activeInfoWindowRef.current = infowindow;
       });
+
       bounds.extend(markerPosition);
     });
     
@@ -95,21 +133,17 @@ function MapContent() {
   };
 
   return (
-    // 모바일 브라우저 주소창 대응 (100dvh)
     <div className="flex flex-col w-full h-[100dvh] bg-slate-900 overflow-hidden relative">
       
-      {/* 1. 상단 헤더 */}
       <header className="absolute top-0 left-0 right-0 z-50 h-14 bg-slate-900/90 backdrop-blur border-b border-slate-800 flex justify-between items-center px-4">
          <button onClick={() => router.back()} className="text-slate-400 font-bold p-2">←</button>
          <h1 className="text-lg font-bold text-white truncate">{menu ? `${menu} 맛집` : '주변 식당'}</h1>
          <div className="w-8"></div>
       </header>
 
-      {/* 2. 지도 영역 (화면의 65% 고정) */}
       <div className="w-full h-[65%] relative pt-14">
         <div ref={mapContainerRef} className="w-full h-full bg-slate-800"></div>
         
-        {/* 현 위치에서 검색 버튼 */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 w-max">
           <button 
             onClick={handleReSearch}
@@ -120,7 +154,6 @@ function MapContent() {
         </div>
       </div>
 
-      {/* 3. 리스트 영역 (화면의 35% 고정 - 무조건 보임) */}
       <div className="w-full h-[35%] bg-slate-800 border-t border-slate-700 flex flex-col z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <div className="px-4 py-3 border-b border-slate-700 flex justify-between items-center bg-slate-800 shrink-0">
            <span className="text-sm font-bold text-slate-200">검색 결과 <span className="text-orange-400">{places.length}</span>건</span>

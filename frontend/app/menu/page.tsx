@@ -87,7 +87,7 @@ export default function MenuPage() {
         {!menuData ? (
           <div className="text-center space-y-6 py-10 animate-fade-in-up">
             <div className="text-7xl grayscale opacity-30">🍽️</div>
-            <h2 className="text-xl font-bold">오늘의 최적 메뉴는?</h2>
+            <h2 className="text-xl font-bold">오늘의 추천 메뉴는?</h2>
             <p className="text-slate-400 text-sm leading-relaxed">
                 현재 계신 곳의 날씨와 시간을 분석하여<br/>
                 가장 어울리는 메뉴를 AI가 선정합니다.

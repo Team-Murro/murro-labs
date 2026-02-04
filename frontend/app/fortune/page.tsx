@@ -4,13 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function FortunePage() {
-  // 클라이언트 마운트 여부 확인 상태
   const [isMounted, setIsMounted] = useState(false);
   const [userData, setUserData] = useState({ birthDate: '', birthTime: '', gender: '남성' });
   const [fortuneData, setFortuneData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // 1. 컴포넌트 마운트 시 브라우저 환경 확인 및 데이터 로드
   useEffect(() => {
     setIsMounted(true);
     const saved = localStorage.getItem('murro_user_info');
@@ -18,7 +16,6 @@ export default function FortunePage() {
       try {
         const parsed = JSON.parse(saved);
         setUserData(parsed);
-        // 저장된 데이터가 있으면 바로 호출
         fetchFortune(parsed);
       } catch (e) {
         console.error("저장된 데이터 파싱 오류", e);
@@ -60,7 +57,6 @@ export default function FortunePage() {
     return 'bg-green-500 border-green-600';
   };
 
-  // Hydration Error 방지를 위해 마운트 전에는 렌더링하지 않음
   if (!isMounted) return <div className="min-h-screen bg-gray-900" />;
 
   return (
@@ -116,6 +112,12 @@ export default function FortunePage() {
                 ))}
               </div>
             </div>
+
+            {/* [복구] 하단 오운완 이미지 추가 */}
+            <div className="mt-8 flex justify-center">
+                <img src="/oww2.png" alt="오늘의 운세 완료" className="w-32 opacity-80" />
+            </div>
+
           </div>
         )}
       </main>
