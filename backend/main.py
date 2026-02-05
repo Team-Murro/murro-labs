@@ -19,10 +19,11 @@ from geocoder import update_store_coordinates
 from menu import get_menu_recommendation
 from datetime import datetime
 from prometheus_fastapi_instrumentator import Instrumentator
-# [수정] generate_game_data 대신 이미지 URL 변환 함수만 가져옴
 from generator import get_image_url 
 import random
 from weather import get_kma_weather, get_current_address, get_weather_comment
+# [추가] 뉴스 모듈 임포트
+from news import get_ai_news_briefing
 
 Base.metadata.create_all(bind=engine)
 
@@ -226,17 +227,11 @@ def delete_notice(notice_id: int, db: Session = Depends(get_db)):
         return {"message": "삭제되었습니다."}
     return {"error": "존재하지 않는 글입니다."}
 
-# --- [수정 완료] 밸런스 게임 API (DB 기반 랜덤 픽) ---
-
+# --- 밸런스 게임 API ---
 @app.get("/api/balance/next")
 def get_next_balance_game(db: Session = Depends(get_db)):
-    """
-    DB에서 랜덤으로 1개를 뽑아 즉시 반환 (속도 0.1초)
-    """
-    # 1. 랜덤 정렬로 하나 추출
     game = db.query(BalanceGame).order_by(func.random()).first()
     
-    # 2. 만약 DB가 비어있다면 에러 반환 (seed.py 실행 유도)
     if not game:
         return {
             "error": "질문 데이터가 없습니다. 서버 관리자에게 'seed.py' 실행을 요청하세요.",
@@ -245,8 +240,6 @@ def get_next_balance_game(db: Session = Depends(get_db)):
             "option_b": "기다려주세요"
         }
 
-    # 3. DB에 저장된 영문 키워드(keyword_a/b)를 이용해 실제 이미지 URL 검색
-    # (Unsplash 검색은 빠르지만, 이것도 느리면 img_a/b 컬럼에 URL을 미리 박아두는 방법도 있음)
     img_a = get_image_url(game.keyword_a)
     img_b = get_image_url(game.keyword_b)
     
@@ -269,7 +262,6 @@ def vote_balance_game(game_id: int, choice: str, db: Session = Depends(get_db)):
     
     db.commit()
     
-    # 결과 계산
     total = game.count_a + game.count_b
     per_a = int((game.count_a / total) * 100) if total > 0 else 50
     
@@ -282,22 +274,17 @@ def vote_balance_game(game_id: int, choice: str, db: Session = Depends(get_db)):
 
 @app.get("/api/weather/current")
 async def get_today_weather(lat: float, lng: float):
-    # 1. 날씨 & 주소 조회 (빠름)
     weather = get_kma_weather(lat, lng)
     address = get_current_address(lat, lng)
 
     if not weather:
         return {"error": "기상청 정보를 불러올 수 없습니다."}
     
-    # 데이터 가공
     pty_code = int(weather.get("PTY", 0))
     pty_desc = {0: "맑음", 1: "비", 2: "비/눈", 3: "눈", 4: "소나기"}.get(pty_code, "정보 없음")
     temp = weather.get("T1H", "0")
     wind = weather.get("WSD", "0")
 
-    # 2. [추가] LLM에게 멘트 요청 (최대 5초 소요)
-    # 팁: 여기서 await loop.run_in_executor 등을 쓰면 더 좋지만, 
-    # 현재 사용자 규모(개인용)에서는 직접 호출해도 무방합니다.
     comment = get_weather_comment(address, temp, pty_desc, wind)
     
     return {
@@ -306,5 +293,10 @@ async def get_today_weather(lat: float, lng: float):
         "humidity": weather.get("REH"),
         "wind": wind,
         "condition": pty_desc,
-        "comment": comment  # [핵심] 생성된 멘트 포함
+        "comment": comment 
     }
+
+# --- [추가] 뉴스 브리핑 API ---
+@app.get("/api/news/briefing")
+async def get_news():
+    return await get_ai_news_briefing()

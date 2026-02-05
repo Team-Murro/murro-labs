@@ -10,3 +10,5 @@ prometheus-fastapi-instrumentator
 requests
 pydantic
 tzdata
+feedparser
+

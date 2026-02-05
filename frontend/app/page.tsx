@@ -44,7 +44,7 @@ export default function Home() {
                 <div className="flex justify-between items-center">
                   <span className="text-2xl font-black font-mono">{lotto.turn}회</span>
                   <div className="flex gap-1">
-                    {[lotto.num1, lotto.num2, lotto.num3, lotto.num4, lotto.num5, lotto.num6].map((n, i) => (
+                    {[lotto.num1, lotto.num2, lotto.num3, lotto.num4, lotto.num5, lotto.num6].map((n: number, i: number) => (
                       <span key={i} className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold border-b-2 ${getBallColor(n)}`}>{n}</span>
                     ))}
                   </div>
@@ -89,10 +89,33 @@ export default function Home() {
                <h3 className="text-sm font-bold text-emerald-400 mb-2">🌦️ 오늘의 날씨</h3>
                <p className="text-[11px] text-slate-400 leading-relaxed">내 동네 실시간 날씨 정보를<br/>기상청 데이터로 확인하세요.</p>
             </Link>
-            <div className="p-8 border border-slate-800 border-dashed rounded-3xl flex flex-col items-center opacity-30">
-               <span className="text-xl mb-1">🚧</span>
-               <span className="text-[10px] font-mono tracking-widest uppercase">Preparing</span>
-            </div>
+
+            {/* [수정] Preparing 빈칸 -> 오늘의 뉴스 카드 */}
+            <Link href="/news" className="block w-full h-full">
+                <div className="bg-slate-800/50 rounded-3xl p-6 border border-slate-700 hover:border-yellow-500/50 hover:bg-slate-800 transition-all cursor-pointer group h-full relative overflow-hidden flex flex-col justify-between">
+                    {/* 배경 데코레이션 */}
+                    <div className="absolute -right-4 -bottom-4 text-6xl opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all rotate-12">
+                        📰
+                    </div>
+
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-sm font-bold text-yellow-400">⚡ 오늘의 뉴스</h3>
+                            <span className="text-[9px] bg-yellow-500/20 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-500/30">New</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                            AI가 엄선한 3줄 요약<br/>
+                            주요 토픽 브리핑
+                        </p>
+                    </div>
+
+                    <div className="mt-4 flex justify-end">
+                        <span className="text-xs text-yellow-500/50 font-bold group-hover:text-yellow-400 group-hover:translate-x-1 transition-all">
+                            확인하기 →
+                        </span>
+                    </div>
+                </div>
+            </Link>
           </div>
         </section>
       </div>
