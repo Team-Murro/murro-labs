@@ -23,6 +23,8 @@ spec:
           env:
             - name: TZ
               value: "Asia/Seoul"
+            - name: HOSTNAME
+              value: "0.0.0.0"                
             - name: NEXT_PUBLIC_API_URL
               value: "https://murro.co.kr"  # 기존에 있던 거라면 유지
             - name: ADMIN_USER
