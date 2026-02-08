@@ -128,11 +128,10 @@ async def crawl_past_winning_stores():
                 page_num = 1
                 while True:
                     # 현재 페이지 아이템 수집 (조금 기다림)
-                    await page.wait_for_timeout(500) 
                     items_2nd = await page.locator("#storeDiv .store-box").all()
                     
                     has_new_data = False
-                    current_page_count = 0 # 디버깅용
+                    
 
                     for item in items_2nd:
                         try:
