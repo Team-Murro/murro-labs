@@ -20,13 +20,11 @@ async def crawl_past_winning_stores():
     if last_saved is None or last_saved < 262:
         current_turn = START_TURN
     else:
-        # [주의] DB에서 1210회를 삭제했다면, 1209회 다음인 1210회부터 시작하게 됨
         current_turn = last_saved + 1
         
     print(f"🔄 {current_turn}회차부터 수집을 시작합니다. (마지막 저장: {last_saved or '없음'})")
     
     async with async_playwright() as p:
-        # 사용자님 요청대로 원본 설정 유지 (headless=True)
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
@@ -38,10 +36,7 @@ async def crawl_past_winning_stores():
         print(f"🌐 지도 페이지 접속 중... ({target_url})")
         
         try:
-            # 🔥 [수정 1] 접속 멈춤 해결
-            # 원본의 'networkidle'은 사이트 광고 스크립트 때문에 무한 대기할 수 있습니다.
-            # 'domcontentloaded'는 화면만 뜨면 바로 진행하므로 멈추지 않습니다.
-            await page.goto(target_url, wait_until='domcontentloaded', timeout=60000)
+            await page.goto(target_url, wait_until='networkidle', timeout=60000)
         except:
             print("⚠️ 페이지 로딩 지연 (일단 진행)")
 
@@ -68,47 +63,51 @@ async def crawl_past_winning_stores():
                 # 2. 검색 버튼 클릭
                 await page.click('#btnSrch')
                 try:
+                    # 1등 배출점 테이블이 보일 때까지 대기 (최대 5초)
                     await page.wait_for_selector("#storeDiv .store-box", state="visible", timeout=5000)
                 except:
-                    print(" -> 데이터 로딩 지연 또는 없음")
+                    print("  -> 데이터 로딩 지연 또는 없음")
 
                 stores_to_save = []
 
                 # ============================================================
-                # 1️⃣ [1등 데이터 수집] - 원본 로직 유지
+                # 1️⃣ [1등 데이터 수집]
                 # ============================================================
                 try:
+                    # 탭 강제 전환 (jQuery)
                     await page.evaluate("""() => {
                         $('#srchLtWnRank li[value="all"]').removeClass('tagTab');
                         $('#srchLtWnRank li[value="2"]').removeClass('tagTab');
-                        $('#srchLtWnRank li[value="1"]').addClass('tagTab');
-                        $('#srchLtWnRank li[value="1"]').trigger('click');
+                        $('#srchLtWnRank li[value="1"]').addClass('tagTab'); // UI 표시용
+                        $('#srchLtWnRank li[value="1"]').trigger('click');   // 실제 동작
                     }""")
                     await page.wait_for_timeout(1000)
                 except:
                     pass
 
+                # 🔥 [수정됨] 정확한 선택자로 1등 아이템 가져오기
                 items = await page.locator("#storeDiv .store-box").all()
                 
                 for item in items:
                     try:
+                        # 텍스트 추출 (없을 경우 대비)
                         store_name = await item.locator(".store-loc").inner_text()
                         rank_text = await item.locator(".draw-rank").inner_text()
                         address = await item.locator(".shpAddr").inner_text()
                         
+                        # 게임 방식 (자동/수동)
                         game_type = "알수없음"
                         if await item.locator(".draw-opt").count() > 0:
                             game_type = await item.locator(".draw-opt").inner_text()
 
+                        # 1등인지 확인 (탭을 눌렀어도 더블 체크)
                         if "1등" in rank_text:
-                            # 1등 중복 체크 (안전하게 이름+주소 비교)
-                            if not any(s.rank == 1 and s.store_name == store_name.strip() and s.address == address.strip() for s in stores_to_save):
-                                stores_to_save.append(WinningStore(
-                                    turn=current_turn, rank=1, store_name=store_name.strip(), 
-                                    address=address.strip(), game_type=game_type.strip()
-                                ))
+                            stores_to_save.append(WinningStore(
+                                turn=current_turn, rank=1, store_name=store_name.strip(), 
+                                address=address.strip(), game_type=game_type.strip()
+                            ))
                     except Exception as e:
-                        continue 
+                        continue # 파싱 에러 시 스킵
 
                 print(f" 1등({len(stores_to_save)}곳)", end="..")
 
@@ -128,6 +127,7 @@ async def crawl_past_winning_stores():
                 # 페이징 루프
                 page_num = 1
                 while True:
+                    # 현재 페이지 아이템 수집
                     items_2nd = await page.locator("#storeDiv .store-box").all()
                     
                     has_new_data = False
@@ -137,35 +137,25 @@ async def crawl_past_winning_stores():
                             rank_text = await item.locator(".draw-rank").inner_text()
                             address = await item.locator(".shpAddr").inner_text()
                             
+                            # 2등만 수집
                             if "2등" in rank_text:
                                 store_name = store_name.strip()
-                                address = address.strip()
-                                
-                                # 🔥 [수정 2] 데이터 누락 원인이었던 중복 체크 로직 수정
-                                # (이름만 보지 않고 주소까지 비교하도록 변경)
-                                is_duplicate = any(
-                                    s.rank == 2 and 
-                                    s.store_name == store_name and 
-                                    s.address == address 
-                                    for s in stores_to_save
-                                )
-                                
-                                if not is_duplicate:
+                                # 중복 체크
+                                if not any(s.rank == 2 and s.store_name == store_name for s in stores_to_save):
                                     stores_to_save.append(WinningStore(
                                         turn=current_turn, rank=2, store_name=store_name, 
-                                        address=address, game_type=None
+                                        address=address.strip(), game_type=None
                                     ))
                                     has_new_data = True
                         except:
                             continue
                     
-                    # 더 이상 새 데이터가 없고 목록도 비었으면 종료
-                    if not has_new_data and len(items_2nd) == 0:
-                        break
+                    if not has_new_data: break
 
-                    # 다음 페이지 클릭 (사용자 원본 로직 그대로 유지)
+                    # 🔥 [수정됨] 다음 페이지 클릭 로직 (페이지 구조 반영)
                     try:
                         next_clicked = await page.evaluate(f"""(pageNum) => {{
+                            // 숫자 버튼 클릭
                             const links = document.querySelectorAll('.pagination-ul .page-link');
                             for(let a of links) {{
                                 if(a.innerText.trim() === String(pageNum + 1)) {{ 
@@ -173,6 +163,7 @@ async def crawl_past_winning_stores():
                                     return true; 
                                 }}
                             }}
+                            // 화살표(다음) 버튼 클릭 (alt='다음페이지' 이미지 포함된 링크)
                             const nextBtn = document.querySelector('.pagination-ul .btn-arrow a img[alt="다음페이지"]');
                             if(nextBtn && nextBtn.parentElement && nextBtn.parentElement.parentElement) {{
                                 nextBtn.parentElement.parentElement.click();
@@ -182,7 +173,7 @@ async def crawl_past_winning_stores():
                         }}""", page_num)
 
                         if next_clicked:
-                            await page.wait_for_timeout(800) # 클릭 후 잠시 대기
+                            await page.wait_for_timeout(800)
                             page_num += 1
                         else:
                             break
